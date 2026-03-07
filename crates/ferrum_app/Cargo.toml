@@ -8,8 +8,6 @@ name = "ferrum"
 path = "src/main.rs"
 
 [dependencies]
-# ferrum_core = { workspace = true }
-# ferrum_physics = { workspace = true }
 ferrum_render  = { workspace = true }
 
 # glam       = { workspace = true }

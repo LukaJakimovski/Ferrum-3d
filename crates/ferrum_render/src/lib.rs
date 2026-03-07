@@ -17,12 +17,15 @@ mod texture;
 use model::{DrawLight, DrawModel, Vertex};
 use camera::{CameraUniform};
 use glam::{Vec3, Quat, Mat4, Mat3};
+use ferrum_core::math::Float;
+use ferrum_physics::rigidbody::RigidBodySet;
+use ferrum_physics::update::Physics;
 
 const NUM_INSTANCES_PER_ROW: u32 = 1;
 
 struct Instance {
-    position: Vec3,
-    rotation: Quat,
+    pub position: Vec3,
+    pub rotation: Quat,
 }
 
 impl Instance {
@@ -135,6 +138,7 @@ pub struct State {
     debug_material: model::Material,
     // NEW!
     mouse_pressed: bool,
+    physics: Physics,
 }
 
 fn create_render_pipeline(
@@ -342,7 +346,7 @@ impl State {
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
         let camera_bind_group_layout =
@@ -515,6 +519,7 @@ impl State {
             debug_material,
             // NEW!
             mouse_pressed: false,
+            physics: { Physics {rigidbodies: RigidBodySet::new(1) } },
         })
     }
 
@@ -576,6 +581,18 @@ impl State {
             &self.light_buffer,
             0,
             bytemuck::cast_slice(&[self.light_uniform]),
+        );
+
+        self.physics.physics_update(dt as Float);
+        let pos = self.physics.rigidbodies.get_position(0);
+        self.instances[0].position = Vec3::new(pos.x as f32, pos.y as f32, pos.z as f32);
+
+        // Rebuild the raw instance data and write to the buffer
+        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        self.queue.write_buffer(
+            &self.instance_buffer,
+            0,
+            bytemuck::cast_slice(&instance_data),
         );
     }
 
@@ -660,7 +677,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             state: None,
-            last_time: 0.0,
+            last_time: now(),
         }
     }
 }

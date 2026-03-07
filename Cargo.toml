@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/ferrum_core",
-#    "crates/ferrum_physics",
+    "crates/ferrum_physics",
     "crates/ferrum_render",
     "crates/ferrum_app",
 ]
@@ -30,6 +30,6 @@ tobj = { version = "3.2", default-features = false, features = ["async"]}
 image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
 
 # internal crates
-ferrum_core    = { path = "crates/ferrum_core" }
-# ferrum_physics = { path = "crates/ferrum_physics" }
+ferrum_core    = { path = "crates/ferrum_core", features = ["f32"] }
+ferrum_physics = { path = "crates/ferrum_physics" }
 ferrum_render  = { path = "crates/ferrum_render" }

@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 ferrum_core    = { workspace = true }
-#ferrum_physics = { workspace = true }
+ferrum_physics = { workspace = true }
 
 anyhow     = { workspace = true }
 bytemuck   = { workspace = true }
