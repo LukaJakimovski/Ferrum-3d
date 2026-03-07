@@ -7,13 +7,13 @@ edition = "2018"
 ferrum_core    = { workspace = true }
 #ferrum_physics = { workspace = true }
 
-anyhow   = { workspace = true }
-bytemuck = { workspace = true }
-glam     = { workspace = true }
-env_logger = "0.10"
-pollster = "0.3"
-log      = { workspace = true }
-tobj     = { workspace = true }
-wgpu     = { workspace = true }
-winit    = { workspace = true }
-image    = { workspace = true }
+anyhow     = { workspace = true }
+bytemuck   = { workspace = true }
+glam       = { workspace = true }
+env_logger = { workspace = true }
+pollster   =  { workspace = true }
+log        = { workspace = true }
+tobj       = { workspace = true }
+wgpu       = { workspace = true }
+winit      = { workspace = true }
+image      = { workspace = true }
