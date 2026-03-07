@@ -1,7 +1,8 @@
+
+use ferrum_core::time::now;
 use std::sync::Arc;
 use std::{f32::consts::PI, iter};
 
-use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
 use winit::event_loop::ActiveEventLoop;
@@ -17,43 +18,23 @@ mod resources;
 mod texture;
 
 use model::{DrawLight, DrawModel, Vertex};
+use camera::{CameraUniform};
+use glam::{Vec3, Quat, Mat4, Mat3};
 
-const NUM_INSTANCES_PER_ROW: u32 = 10;
-
-#[repr(C)]
-#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct CameraUniform {
-    view_position: [f32; 4],
-    view_proj: [[f32; 4]; 4],
-}
-
-impl CameraUniform {
-    fn new() -> Self {
-        Self {
-            view_position: [0.0; 4],
-            view_proj: cgmath::Matrix4::identity().into(),
-        }
-    }
-
-    // UPDATED!
-    fn update_view_proj(&mut self, camera: &camera::Camera, projection: &camera::Projection) {
-        self.view_position = camera.position.to_homogeneous().into();
-        self.view_proj = (projection.calc_matrix() * camera.calc_matrix()).into()
-    }
-}
+const NUM_INSTANCES_PER_ROW: u32 = 1;
 
 struct Instance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
+    position: Vec3,
+    rotation: Quat,
 }
 
 impl Instance {
     fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: (cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
-                .into(),
-            normal: cgmath::Matrix3::from(self.rotation).into(),
+            model: (Mat4::from_translation(self.position)
+                * Mat4::from_quat(self.rotation))
+                .to_cols_array_2d(),
+            normal: Mat3::from_quat(self.rotation).to_cols_array_2d(),
         }
     }
 }
@@ -326,10 +307,10 @@ impl State {
             });
 
         // UPDATED!
-        let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
+        let camera = camera::Camera::new((0.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
         let projection =
-            camera::Projection::new(config.width, config.height, cgmath::Deg(45.0), 0.1, 100.0);
-        let camera_controller = camera::CameraController::new(4.0, 0.4);
+            camera::Projection::new(config.width, config.height,45.0f32.to_radians(), 0.1, 100.0);
+        let camera_controller = camera::CameraController::new(4.0, 1.0);
 
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera, &projection);
@@ -347,15 +328,15 @@ impl State {
                     let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
                     let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
-                    let position = cgmath::Vector3 { x, y: 0.0, z };
+                    let position = Vec3 { x, y: 0.0, z };
 
-                    let rotation = if position.is_zero() {
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
+                    let rotation = if position == Vec3::ZERO {
+                        Quat::from_axis_angle(
+                            Vec3::Z,
+                            0.0f32.to_radians(),
                         )
                     } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                        Quat::from_axis_angle(position.normalize(), 45.0f32.to_radians())
                     };
 
                     Instance { position, rotation }
@@ -579,7 +560,7 @@ impl State {
         self.camera_controller.handle_scroll(delta);
     }
 
-    fn update(&mut self, dt: std::time::Duration) {
+    fn update(&mut self, dt: f64) {
         // UPDATED!
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
@@ -591,10 +572,10 @@ impl State {
         );
 
         // Update the light
-        let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
-        self.light_uniform.position = (cgmath::Quaternion::from_axis_angle(
+        let old_position: Vec3 = self.light_uniform.position.into();
+        self.light_uniform.position = (Quat::from_axis_angle(
             (0.0, 1.0, 0.0).into(),
-            cgmath::Deg(PI * dt.as_secs_f32()),
+            (PI * dt as f32).to_radians(),
         ) * old_position)
             .into();
         self.queue.write_buffer(
@@ -680,7 +661,7 @@ pub struct App {
     #[cfg(target_arch = "wasm32")]
     proxy: Option<winit::event_loop::EventLoopProxy<State>>,
     state: Option<State>,
-    last_time: instant::Instant,
+    last_time: f64,
 }
 
 impl App {
@@ -691,7 +672,7 @@ impl App {
             state: None,
             #[cfg(target_arch = "wasm32")]
             proxy,
-            last_time: instant::Instant::now(),
+            last_time: 0.0,
         }
     }
 }
@@ -723,33 +704,10 @@ impl ApplicationHandler<State> for App {
             // await the
             self.state = Some(pollster::block_on(State::new(window)).unwrap());
         }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            if let Some(proxy) = self.proxy.take() {
-                wasm_bindgen_futures::spawn_local(async move {
-                    assert!(proxy
-                        .send_event(
-                            State::new(window)
-                                .await
-                                .expect("Unable to create canvas!!!")
-                        )
-                        .is_ok())
-                });
-            }
-        }
     }
 
     #[allow(unused_mut)]
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            event.window.request_redraw();
-            event.resize(
-                event.window.inner_size().width,
-                event.window.inner_size().height,
-            );
-        }
         self.state = Some(event);
     }
 
@@ -789,8 +747,8 @@ impl ApplicationHandler<State> for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                let dt = self.last_time.elapsed();
-                self.last_time = instant::Instant::now();
+                let dt = now() - self.last_time ;
+                self.last_time = now();
                 state.update(dt);
                 match state.render() {
                     Ok(_) => {}
@@ -831,26 +789,10 @@ pub fn run() -> anyhow::Result<()> {
     {
         env_logger::init();
     }
-    #[cfg(target_arch = "wasm32")]
-    {
-        console_log::init_with_level(log::Level::Info).unwrap_throw();
-    }
 
     let event_loop = EventLoop::with_user_event().build()?;
-    let mut app = App::new(
-        #[cfg(target_arch = "wasm32")]
-        &event_loop,
-    );
+    let mut app = App::new();
     event_loop.run_app(&mut app)?;
-
-    Ok(())
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(start)]
-pub fn run_web() -> Result<(), wasm_bindgen::JsValue> {
-    console_error_panic_hook::set_once();
-    run().unwrap_throw();
 
     Ok(())
 }

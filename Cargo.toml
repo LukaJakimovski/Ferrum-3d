@@ -1,52 +1,52 @@
-[package]
-name = "ferrum_3d"
-version = "0.1.0"
-edition = "2018"
+[workspace]
+members = [
+    "crates/ferrum_core",
+#    "crates/ferrum_physics",
+    "crates/ferrum_render",
+    "crates/ferrum_app",
+]
+resolver = "2"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+[workspace.dependencies]
+# math
+glam     = { version = "0.32.1", features = ["bytemuck"] }
 
-[features]
-debug = []
+bytemuck = { version = "1.24",  features = ["derive"] }
 
-[dependencies]
-anyhow = "1.0"
-bytemuck = { version = "1.24", features = [ "derive" ] }
-cgmath = "0.18"
+anyhow     = "1.0"
+
+# gpu
+wgpu     = "28.0"
+winit    = { version = "0.30",  features = [] }
+
 env_logger = "0.10"
-pollster = "0.3"
-log = "0.4"
+pollster   = "0.3"
+log        = "0.4"
 tobj = { version = "3.2", default-features = false, features = ["async"]}
-wgpu = { version = "28.0"}
-winit = { version = "0.30", features = ["android-native-activity"] }
-instant = "0.1"
-wasm-bindgen = "0.2.114"
-wasm-bindgen-futures = "0.4.64"
-console_log = "1.0.0"
-console_error_panic_hook = "0.1.7"
-reqwest = "0.13.2"
-web-sys = "0.3.91"
 
-[dependencies.image]
-version = "0.24"
-default-features = false
-features = ["png", "jpeg", "hdr"]
+# encase   = { version = "0.10",  features = ["glam"] }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwest = { version = "0.11" }
-console_error_panic_hook = "0.1"
-console_log = "1.0"
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = [
-    "Document",
-    "Window",
-    "Element",
-    "Location",
-]}
-instant = { version = "0.1", features = [ "wasm-bindgen" ] }
 
-[build-dependencies]
-anyhow = "1.0"
-fs_extra = "1.2"
-glob = "0.3"
+
+# ui
+# egui       = "0.31.1"
+# egui-wgpu  = { version = "0.31.1", features = ["winit"] }
+# egui-winit = "0.31.1"
+
+# utils
+# rayon      = "1.10"
+
+
+
+
+
+rand       = "0.9.2"
+
+# assets
+
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
+
+# internal crates
+ferrum_core    = { path = "crates/ferrum_core" }
+# ferrum_physics = { path = "crates/ferrum_physics" }
+ferrum_render  = { path = "crates/ferrum_render" }

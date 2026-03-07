@@ -1,5 +1,5 @@
 use std::io::{BufReader, Cursor};
-
+use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
 
 use crate::{model, texture};
@@ -25,7 +25,7 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     #[cfg(not(target_arch = "wasm32"))]
     let txt = {
         let path = std::env::current_dir()?
-            .join("res")
+            .join("crates/ferrum_render/res")
             .join(file_name);
         std::fs::read_to_string(path)?
     };
@@ -42,7 +42,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     #[cfg(not(target_arch = "wasm32"))]
     let data = {
         let path = std::env::current_dir()?
-            .join("res")
+            .join("crates/ferrum_render/res")
             .join(file_name);
         std::fs::read(path)?
     };
@@ -130,13 +130,13 @@ pub async fn load_model(
                 let v1 = vertices[c[1] as usize];
                 let v2 = vertices[c[2] as usize];
 
-                let pos0: cgmath::Vector3<_> = v0.position.into();
-                let pos1: cgmath::Vector3<_> = v1.position.into();
-                let pos2: cgmath::Vector3<_> = v2.position.into();
+                let pos0: Vec3 = v0.position.into();
+                let pos1: Vec3 = v1.position.into();
+                let pos2: Vec3 = v2.position.into();
 
-                let uv0: cgmath::Vector2<_> = v0.tex_coords.into();
-                let uv1: cgmath::Vector2<_> = v1.tex_coords.into();
-                let uv2: cgmath::Vector2<_> = v2.tex_coords.into();
+                let uv0: Vec2 = v0.tex_coords.into();
+                let uv1: Vec2 = v1.tex_coords.into();
+                let uv2: Vec2 = v2.tex_coords.into();
 
                 // Calculate the edges of the triangle
                 let delta_pos1 = pos1 - pos0;
@@ -161,17 +161,17 @@ pub async fn load_model(
 
                 // We'll use the same tangent/bitangent for each vertex in the triangle
                 vertices[c[0] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[0] as usize].tangent)).into();
+                    (tangent + Vec3::from(vertices[c[0] as usize].tangent)).into();
                 vertices[c[1] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[1] as usize].tangent)).into();
+                    (tangent + Vec3::from(vertices[c[1] as usize].tangent)).into();
                 vertices[c[2] as usize].tangent =
-                    (tangent + cgmath::Vector3::from(vertices[c[2] as usize].tangent)).into();
+                    (tangent + Vec3::from(vertices[c[2] as usize].tangent)).into();
                 vertices[c[0] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[0] as usize].bitangent)).into();
+                    (bitangent + Vec3::from(vertices[c[0] as usize].bitangent)).into();
                 vertices[c[1] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[1] as usize].bitangent)).into();
+                    (bitangent + Vec3::from(vertices[c[1] as usize].bitangent)).into();
                 vertices[c[2] as usize].bitangent =
-                    (bitangent + cgmath::Vector3::from(vertices[c[2] as usize].bitangent)).into();
+                    (bitangent + Vec3::from(vertices[c[2] as usize].bitangent)).into();
 
                 // Used to average the tangents/bitangents
                 triangles_included[c[0] as usize] += 1;
@@ -183,8 +183,8 @@ pub async fn load_model(
             for (i, n) in triangles_included.into_iter().enumerate() {
                 let denom = 1.0 / n as f32;
                 let v = &mut vertices[i];
-                v.tangent = (cgmath::Vector3::from(v.tangent) * denom).into();
-                v.bitangent = (cgmath::Vector3::from(v.bitangent) * denom).into();
+                v.tangent = (Vec3::from(v.tangent) * denom).into();
+                v.bitangent = (Vec3::from(v.bitangent) * denom).into();
             }
 
             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

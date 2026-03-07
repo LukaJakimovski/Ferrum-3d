@@ -1,4 +1,4 @@
-use ferrum_3d::run;
+use ferrum_render::run;
 
 fn main() {
     run().unwrap();
