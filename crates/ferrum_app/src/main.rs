@@ -1,4 +1,7 @@
-use ferrum_render::run;
+mod update;
+mod app;
+
+use app::run;
 
 fn main() {
     run().unwrap();

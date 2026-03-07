@@ -1,13 +1,11 @@
 
-use ferrum_core::time::now;
 use std::sync::Arc;
 use std::{f32::consts::PI, iter};
 
 use wgpu::util::DeviceExt;
-use winit::application::ApplicationHandler;
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
-use winit::{event::*, event_loop::EventLoop, keyboard::PhysicalKey, window::Window};
+use winit::{event::*, window::Window};
 
 mod camera;
 mod model;
@@ -112,7 +110,7 @@ struct LightUniform {
 }
 
 pub struct State {
-    window: Arc<Window>,
+    pub window: Arc<Window>,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -121,7 +119,7 @@ pub struct State {
     obj_model: model::Model,
     camera: camera::Camera,                      // UPDATED!
     projection: camera::Projection,              // NEW!
-    camera_controller: camera::CameraController, // UPDATED!
+    pub camera_controller: camera::CameraController, // UPDATED!
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -137,7 +135,7 @@ pub struct State {
     #[allow(dead_code)]
     debug_material: model::Material,
     // NEW!
-    mouse_pressed: bool,
+    pub mouse_pressed: bool,
     physics: Physics,
 }
 
@@ -205,7 +203,7 @@ fn create_render_pipeline(
 }
 
 impl State {
-    async fn new(window: Arc<Window>) -> anyhow::Result<State> {
+    pub async fn new(window: Arc<Window>) -> anyhow::Result<State> {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -307,7 +305,7 @@ impl State {
         // UPDATED!
         let camera = camera::Camera::new((0.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
         let projection =
-            camera::Projection::new(config.width, config.height,45.0f32.to_radians(), 0.1, 100.0);
+            camera::Projection::new(config.width, config.height, 45.0f32.to_radians(), 0.1, 100.0);
         let camera_controller = camera::CameraController::new(4.0, 1.0);
 
         let mut camera_uniform = CameraUniform::new();
@@ -519,11 +517,11 @@ impl State {
             debug_material,
             // NEW!
             mouse_pressed: false,
-            physics: { Physics {rigidbodies: RigidBodySet::new(1) } },
+            physics: { Physics { rigidbodies: RigidBodySet::new(1) } },
         })
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
+    pub fn resize(&mut self, width: u32, height: u32) {
         // UPDATED!
         if width > 0 && height > 0 {
             self.projection.resize(width, height);
@@ -537,7 +535,7 @@ impl State {
     }
 
     // UPDATED!
-    fn handle_key(&mut self, event_loop: &ActiveEventLoop, key: KeyCode, pressed: bool) {
+    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, key: KeyCode, pressed: bool) {
         if !self.camera_controller.handle_key(key, pressed) {
             match (key, pressed) {
                 (KeyCode::Escape, true) => event_loop.exit(),
@@ -547,7 +545,7 @@ impl State {
     }
 
     // NEW!
-    fn handle_mouse_button(&mut self, button: MouseButton, pressed: bool) {
+    pub fn handle_mouse_button(&mut self, button: MouseButton, pressed: bool) {
         match button {
             MouseButton::Left => self.mouse_pressed = pressed,
             _ => {}
@@ -555,11 +553,11 @@ impl State {
     }
 
     // NEW!
-    fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
+    pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
         self.camera_controller.handle_scroll(delta);
     }
 
-    fn update(&mut self, dt: f64) {
+    pub fn update(&mut self, dt: f64) {
         // UPDATED!
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
@@ -584,8 +582,7 @@ impl State {
         );
 
         self.physics.physics_update(dt as Float);
-        let pos = self.physics.rigidbodies.get_position(0);
-        self.instances[0].position = Vec3::new(pos.x as f32, pos.y as f32, pos.z as f32);
+        self.update_instances();
 
         // Rebuild the raw instance data and write to the buffer
         let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
@@ -596,7 +593,18 @@ impl State {
         );
     }
 
-    fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn update_instances(&mut self) {
+        for (id, instance) in self.instances.iter_mut().enumerate() {
+            let pos = self.physics.rigidbodies.get_position(id);
+            instance.position = Vec3::new(pos.x as f32, pos.y as f32, pos.z as f32);
+
+            let rot = self.physics.rigidbodies.get_orientation(id);
+            instance.rotation = rot;
+            println!("{:?}", instance.rotation);
+        }
+    }
+
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
 
         // We can't render unless the surface is configured
@@ -666,121 +674,4 @@ impl State {
 
         Ok(())
     }
-}
-
-pub struct App {
-    state: Option<State>,
-    last_time: f64,
-}
-
-impl App {
-    pub fn new() -> Self {
-        Self {
-            state: None,
-            last_time: now(),
-        }
-    }
-}
-
-impl ApplicationHandler<State> for App {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        #[allow(unused_mut)]
-        let mut window_attributes = Window::default_attributes();
-
-        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
-        {
-            // If we are not on web we can use pollster to
-            // await the
-            self.state = Some(pollster::block_on(State::new(window)).unwrap());
-        }
-    }
-
-    #[allow(unused_mut)]
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: State) {
-        self.state = Some(event);
-    }
-
-    fn device_event(
-        &mut self,
-        _event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
-        event: DeviceEvent,
-    ) {
-        let state = if let Some(state) = &mut self.state {
-            state
-        } else {
-            return;
-        };
-        match event {
-            DeviceEvent::MouseMotion { delta: (dx, dy) } => {
-                if state.mouse_pressed {
-                    state.camera_controller.handle_mouse(dx, dy);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: winit::window::WindowId,
-        event: WindowEvent,
-    ) {
-        let state = match &mut self.state {
-            Some(canvas) => canvas,
-            None => return,
-        };
-
-        match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => state.resize(size.width, size.height),
-            WindowEvent::RedrawRequested => {
-                let dt = now() - self.last_time ;
-                self.last_time = now();
-                state.update(dt);
-                match state.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        let size = state.window.inner_size();
-                        state.resize(size.width, size.height);
-                    }
-                    Err(e) => {
-                        log::error!("Unable to render {}", e);
-                    }
-                }
-            }
-            WindowEvent::MouseInput {
-                state: btn_state,
-                button,
-                ..
-            } => state.handle_mouse_button(button, btn_state.is_pressed()),
-            WindowEvent::MouseWheel { delta, .. } => {
-                state.handle_mouse_scroll(&delta);
-            }
-            WindowEvent::KeyboardInput {
-                event:
-                KeyEvent {
-                    physical_key: PhysicalKey::Code(code),
-                    state: key_state,
-                    ..
-                },
-                ..
-            } => state.handle_key(event_loop, code, key_state.is_pressed()),
-            _ => {}
-        }
-    }
-}
-
-pub fn run() -> anyhow::Result<()> {
-    {
-        env_logger::init();
-    }
-
-    let event_loop = EventLoop::with_user_event().build()?;
-    let mut app = App::new();
-    event_loop.run_app(&mut app)?;
-
-    Ok(())
 }
