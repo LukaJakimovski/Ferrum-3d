@@ -3,101 +3,24 @@ use std::sync::Arc;
 use std::{f32::consts::PI, iter};
 
 use wgpu::util::DeviceExt;
-use winit::event_loop::ActiveEventLoop;
-use winit::keyboard::KeyCode;
-use winit::{event::*, window::Window};
+use winit::window::Window;
 
 mod camera;
 mod model;
 mod resources;
 mod texture;
+mod instance;
+mod input;
 
 use model::{DrawLight, DrawModel, Vertex};
 use camera::{CameraUniform};
-use glam::{Vec3, Quat, Mat4, Mat3};
-use ferrum_core::math::Float;
-use ferrum_physics::rigidbody::RigidBodySet;
+use glam::{Vec3, Quat};
+use ferrum_core::math::{Float, ToFloat};
+use crate::instance::{InstanceRaw, Instance};
+use ferrum_physics::rigidbody::{RigidBody, RigidBodySet};
 use ferrum_physics::update::Physics;
 
-const NUM_INSTANCES_PER_ROW: u32 = 1;
-
-struct Instance {
-    pub position: Vec3,
-    pub rotation: Quat,
-}
-
-impl Instance {
-    fn to_raw(&self) -> InstanceRaw {
-        InstanceRaw {
-            model: (Mat4::from_translation(self.position)
-                * Mat4::from_quat(self.rotation))
-                .to_cols_array_2d(),
-            normal: Mat3::from_quat(self.rotation).to_cols_array_2d(),
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-#[allow(dead_code)]
-struct InstanceRaw {
-    model: [[f32; 4]; 4],
-    normal: [[f32; 3]; 3],
-}
-
-impl model::Vertex for InstanceRaw {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
-            // We need to switch from using a step mode of Vertex to Instance
-            // This means that our shaders will only change to use the next
-            // instance when the shader starts processing a new instance
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials we'll
-                    // be using 2, 3, and 4, for Vertex. We'll start at slot 5 not conflict with them later
-                    shader_location: 5,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
-                // for each vec4. We don't have to do this in code though.
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
-                    shader_location: 6,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
-                    shader_location: 7,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
-                    shader_location: 8,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
-                    shader_location: 9,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
-                    shader_location: 10,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
-                    shader_location: 11,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
+const NUM_INSTANCES_PER_ROW: u32 = 12;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -117,9 +40,9 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
-    camera: camera::Camera,                      // UPDATED!
-    projection: camera::Projection,              // NEW!
-    pub camera_controller: camera::CameraController, // UPDATED!
+    camera: camera::Camera,
+    projection: camera::Projection,
+    pub camera_controller: camera::CameraController,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -133,8 +56,6 @@ pub struct State {
     light_bind_group: wgpu::BindGroup,
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
-    debug_material: model::Material,
-    // NEW!
     pub mouse_pressed: bool,
     physics: Physics,
 }
@@ -281,28 +202,10 @@ impl State {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
-                    // normal map
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
                 ],
                 label: Some("texture_bind_group_layout"),
             });
 
-        // UPDATED!
         let camera = camera::Camera::new((0.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
         let projection =
             camera::Projection::new(config.width, config.height, 45.0f32.to_radians(), 0.1, 100.0);
@@ -372,7 +275,7 @@ impl State {
         });
 
         let obj_model =
-            resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+            resources::load_model("blender_cube.obj", &device, &queue, &texture_bind_group_layout)
                 .await?;
 
         let light_uniform = LightUniform {
@@ -460,36 +363,14 @@ impl State {
                 shader,
             )
         };
-
-        let debug_material = {
-            let diffuse_bytes = include_bytes!("../res/cube-diffuse.jpg");
-            let normal_bytes = include_bytes!("../res/cube-normal.png");
-
-            let diffuse_texture = texture::Texture::from_bytes(
-                &device,
-                &queue,
-                diffuse_bytes,
-                "res/alt-diffuse.png",
-                false,
-            )
-                .unwrap();
-            let normal_texture = texture::Texture::from_bytes(
-                &device,
-                &queue,
-                normal_bytes,
-                "res/alt-normal.png",
-                true,
-            )
-                .unwrap();
-
-            model::Material::new(
-                &device,
-                "alt-material",
-                diffuse_texture,
-                normal_texture,
-                &texture_bind_group_layout,
-            )
-        };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0)};
+        for instance in instances.iter() {
+            let body = RigidBody::builder()
+                .position(instance.position.to_float())
+                .orientation(instance.rotation.to_float())
+                .inv_mass(1.0);
+            physics.rigidbodies.add_body(body);
+        }
 
         Ok(Self {
             window,
@@ -514,10 +395,8 @@ impl State {
             light_bind_group,
             light_render_pipeline,
             #[allow(dead_code)]
-            debug_material,
-            // NEW!
             mouse_pressed: false,
-            physics: { Physics { rigidbodies: RigidBodySet::new(1) } },
+            physics,
         })
     }
 
@@ -534,31 +413,7 @@ impl State {
         }
     }
 
-    // UPDATED!
-    pub fn handle_key(&mut self, event_loop: &ActiveEventLoop, key: KeyCode, pressed: bool) {
-        if !self.camera_controller.handle_key(key, pressed) {
-            match (key, pressed) {
-                (KeyCode::Escape, true) => event_loop.exit(),
-                _ => {}
-            }
-        }
-    }
-
-    // NEW!
-    pub fn handle_mouse_button(&mut self, button: MouseButton, pressed: bool) {
-        match button {
-            MouseButton::Left => self.mouse_pressed = pressed,
-            _ => {}
-        }
-    }
-
-    // NEW!
-    pub fn handle_mouse_scroll(&mut self, delta: &MouseScrollDelta) {
-        self.camera_controller.handle_scroll(delta);
-    }
-
     pub fn update(&mut self, dt: f64) {
-        // UPDATED!
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
@@ -591,17 +446,6 @@ impl State {
             0,
             bytemuck::cast_slice(&instance_data),
         );
-    }
-
-    pub fn update_instances(&mut self) {
-        for (id, instance) in self.instances.iter_mut().enumerate() {
-            let pos = self.physics.rigidbodies.get_position(id);
-            instance.position = Vec3::new(pos.x as f32, pos.y as f32, pos.z as f32);
-
-            let rot = self.physics.rigidbodies.get_orientation(id);
-            instance.rotation = rot;
-            println!("{:?}", instance.rotation);
-        }
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

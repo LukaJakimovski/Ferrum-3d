@@ -59,7 +59,6 @@ pub struct Material {
     #[allow(unused)]
     pub diffuse_texture: texture::Texture,
     #[allow(unused)]
-    pub normal_texture: texture::Texture,
     pub bind_group: wgpu::BindGroup,
 }
 
@@ -68,7 +67,6 @@ impl Material {
         device: &wgpu::Device,
         name: &str,
         diffuse_texture: texture::Texture,
-        normal_texture: texture::Texture,
         layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -82,14 +80,6 @@ impl Material {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
                 },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&normal_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&normal_texture.sampler),
-                },
             ],
             label: Some(name),
         });
@@ -97,7 +87,6 @@ impl Material {
         Self {
             name: String::from(name),
             diffuse_texture,
-            normal_texture,
             bind_group,
         }
     }

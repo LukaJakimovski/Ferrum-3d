@@ -10,10 +10,11 @@ ferrum_physics = { workspace = true }
 anyhow     = { workspace = true }
 bytemuck   = { workspace = true }
 glam       = { workspace = true }
-env_logger = { workspace = true }
-pollster   =  { workspace = true }
-log        = { workspace = true }
+# env_logger = { workspace = true }
+# pollster   =  { workspace = true }
+# log        = { workspace = true }
 tobj       = { workspace = true }
 wgpu       = { workspace = true }
 winit      = { workspace = true }
 image      = { workspace = true }
+# rand       = { workspace = true}
