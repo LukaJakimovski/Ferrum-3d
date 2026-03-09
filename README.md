@@ -7,3 +7,8 @@ A 3d Physics Engine written in Rust
 - Shift -> Go Down
 - Arrow Keys -> Move Camera
 - Left Click Drag -> Move Camera
+
+# todo!
+- GUI
+- Way to load a configuration
+- Gravity

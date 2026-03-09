@@ -1,6 +1,7 @@
 use ferrum_core::math::{Vec3, Quat, Float};
 pub use crate::rigidbodybuilder::RigidBody;
 
+#[derive(Clone)]
 pub struct RigidBodySet {
     pub(crate) positions:    Vec<Vec3>,   // hot  - read every frame
     pub(crate) velocities:   Vec<Vec3>,   // hot  - read every frame
@@ -61,7 +62,7 @@ impl RigidBodySet {
         }
     }
     
-    pub fn len(&mut self) -> usize {
+    pub fn len(&self) -> usize {
         self.positions.len()
     }
     pub fn add_default(&mut self) {

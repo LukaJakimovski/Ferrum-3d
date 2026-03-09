@@ -6,7 +6,7 @@ pub fn ode45_step(
     v: Vec3,
     dt: Float,
     m: Float,
-    force: fn(Float, Vec3, Vec3) -> Vec3,
+    force: &dyn Fn(Float, Vec3, Vec3) -> Vec3,
 ) -> (Vec3, Vec3){ // ((Vec3, Vec3), (Vec3, Vec3)) {
     let a = |t: Float, x: Vec3, v: Vec3| force(t, x, v) * m;
 

@@ -1,4 +1,5 @@
 use ferrum_core::math::{Float, Quat, Vec3};
+use crate::rigidbody::RigidBodySet;
 
 #[derive(Default)]
 #[derive(Clone)]
@@ -81,5 +82,25 @@ impl RigidBody {
     pub fn omega(mut self, omega: Vec3) -> Self {
         self.omega = omega;
         self
+    }
+
+    pub fn sleeping(mut self, sleeping: bool) -> Self {
+        self._is_sleeping = sleeping;
+        self
+    }
+
+    pub fn from_set(set: RigidBodySet, i: usize) -> Self {
+        let mut body: RigidBody = Default::default();
+        body.inv_mass(set.get_inv_mass(i))
+            .mesh(set.get_mesh(i))
+            .index(set.get_index(i))
+            .force(set._forces[i])
+            .omega(set._omega[i])
+            .orientation(set.orientations[i])
+            .velocity(set.velocities[i])
+            .inertia(set._inertia[i])
+            .position(set.positions[i])
+            .restitution(set._restitution[i])
+            .sleeping(set._is_sleeping[i])
     }
 }

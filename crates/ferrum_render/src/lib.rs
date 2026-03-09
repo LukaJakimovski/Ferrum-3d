@@ -299,7 +299,7 @@ impl State {
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
             _padding: 0,
-            color: [1.0, 1.0, 1.0],
+            color: [1.0 / 3.0, 2.0 /3.0, 1.0],
             _padding2: 0,
         };
 
@@ -501,9 +501,9 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
+                            r: self.light_uniform.color[0] as f64 / 10.0,
+                            g: self.light_uniform.color[1] as f64 / 10.0,
+                            b: self.light_uniform.color[2] as f64 / 10.0,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
