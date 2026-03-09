@@ -76,9 +76,9 @@ pub async fn load_model(
             let mut vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| model::ModelVertex {
                     position: [
-                        m.mesh.positions[i * 3],
-                        m.mesh.positions[i * 3 + 1],
-                        m.mesh.positions[i * 3 + 2],
+                        m.mesh.positions[i * 3] / 10.0,
+                        m.mesh.positions[i * 3 + 1] / 10.0,
+                        m.mesh.positions[i * 3 + 2] / 10.0,
                     ],
                     tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
                     normal: [

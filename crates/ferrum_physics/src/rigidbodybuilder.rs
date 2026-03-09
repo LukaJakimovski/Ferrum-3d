@@ -90,7 +90,7 @@ impl RigidBody {
     }
 
     pub fn from_set(set: RigidBodySet, i: usize) -> Self {
-        let mut body: RigidBody = Default::default();
+        let body: RigidBody = Default::default();
         body.inv_mass(set.get_inv_mass(i))
             .mesh(set.get_mesh(i))
             .index(set.get_index(i))

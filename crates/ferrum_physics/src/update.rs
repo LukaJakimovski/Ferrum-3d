@@ -1,7 +1,6 @@
 use ferrum_core::math::{Float, Quat, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
 use crate::rigidbody::RigidBodySet;
-use crate::rigidbodybuilder::RigidBody;
 
 pub struct Physics {
     pub rigidbodies: RigidBodySet

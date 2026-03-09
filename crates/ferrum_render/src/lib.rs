@@ -18,8 +18,11 @@ use ferrum_core::math::{Float, ToFloat};
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody::{RigidBody, RigidBodySet};
 use ferrum_physics::update::Physics;
+#[allow(unused)]
 use rand::RngExt;
+use ferrum_core::math;
 
+#[allow(unused)]
 const NUM_INSTANCES_PER_ROW: u32 = 12;
 
 #[repr(C)]
@@ -220,6 +223,7 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        /*
         const SPACE_BETWEEN: f32 = 3.0;
         let mut instances = vec![vec![]];
         instances.resize(3, vec![]);
@@ -252,6 +256,11 @@ impl State {
                 }
             }
         }
+        */
+        let mut instances = vec![vec![]];
+        instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
+        instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
+        instances[0].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
 
         let mut instance_buffers = vec![];
         for instance in &instances {
@@ -390,11 +399,13 @@ impl State {
                     .inv_mass(1.0)
                     .mesh(mesh)
                     .index(i)
-                    .omega(Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()).as_dvec3());
+                    .omega(math::Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()));
                 physics.rigidbodies.add_body(body);
             }
         }
-
+        physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
         Ok(Self {
             window,
             surface,
