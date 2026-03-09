@@ -2,16 +2,17 @@ use ferrum_core::math::{Vec3, Quat, Float};
 pub use crate::rigidbodybuilder::RigidBody;
 
 pub struct RigidBodySet {
-    pub(crate) positions: Vec<Vec3>,   // hot  - read every frame
-    pub(crate) velocities: Vec<Vec3>,   // hot  - read every frame
+    pub(crate) positions:    Vec<Vec3>,   // hot  - read every frame
+    pub(crate) velocities:   Vec<Vec3>,   // hot  - read every frame
+    pub(crate) _omega:        Vec<Vec3>,
     pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
-    pub(crate) mesh: Vec<usize>,  // hot  - read every frame
-    pub(crate) _forces: Vec<Vec3>,   // hot  - written every frame
-    pub(crate) inv_mass: Vec<Float>,  // warm - read once every frame
-    pub(crate) _inertia: Vec<Vec3>,   // warm - read once every frame
+    pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
+    pub(crate) _forces:      Vec<Vec3>,   // hot  - written every frame
+    pub(crate) inv_mass:     Vec<Float>,  // warm - read once every frame
+    pub(crate) _inertia:     Vec<Vec3>,   // warm - read once every frame
     pub(crate) _restitution: Vec<Float>,  // cold - only on collision
     pub(crate) _is_sleeping: Vec<bool>,   // cold
-    pub(crate) index: Vec<usize>,
+    pub(crate) index:        Vec<usize>,
 }
 
 impl RigidBodySet {
@@ -56,6 +57,7 @@ impl RigidBodySet {
             _is_sleeping:   vec![false; num_bodies],
             mesh:           vec![0; num_bodies],
             index:          vec![0; num_bodies],
+            _omega:          vec![Vec3::ZERO; num_bodies],
         }
     }
     
@@ -73,6 +75,7 @@ impl RigidBodySet {
         self._is_sleeping.push(false);
         self.mesh.push(0);
         self.index.push(0);
+        self._omega.push(Vec3::ZERO);
     }
     
     pub fn add_body(&mut self, builder: RigidBody){
@@ -86,6 +89,7 @@ impl RigidBodySet {
         self._is_sleeping.push(false);
         self.mesh.push(builder.mesh);
         self.index.push(builder.index);
+        self._omega.push(builder.omega);
     }
     
 }

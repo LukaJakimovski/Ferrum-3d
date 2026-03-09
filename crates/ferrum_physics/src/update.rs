@@ -13,7 +13,7 @@ impl Physics{
             let (next_x, next_v) = ode45_step(0.0, self.rigidbodies.get_position(body_id), self.rigidbodies.get_velocity(body_id), dt, self.rigidbodies.get_inv_mass(body_id), force);
             self.rigidbodies.positions[body_id] = next_x;
             self.rigidbodies.velocities[body_id] = next_v;
-            self.rigidbodies.rotate(Quat::from_axis_angle(Vec3::new(3.0, 1.0, 1.0).normalize(), 3.0 * dt), body_id) ;
+            self.rigidbodies.rotate(Quat::from_axis_angle(self.rigidbodies._omega[body_id].normalize(), self.rigidbodies._omega[body_id].length() * dt), body_id) ;
         }
     }
 }

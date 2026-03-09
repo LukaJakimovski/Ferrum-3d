@@ -13,6 +13,7 @@ pub struct RigidBody {
     pub(crate) _restitution: Float,     // cold - only on collision
     pub(crate) _is_sleeping: bool,    // cold
     pub(crate) index: usize,
+    pub(crate) omega: Vec3,
 }
 
 impl RigidBody {
@@ -74,6 +75,11 @@ impl RigidBody {
     
     pub fn index(mut self, index: usize) -> Self {
         self.index = index;
+        self
+    }
+    
+    pub fn omega(mut self, omega: Vec3) -> Self {
+        self.omega = omega;
         self
     }
 }

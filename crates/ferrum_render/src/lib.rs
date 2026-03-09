@@ -222,7 +222,7 @@ impl State {
 
         const SPACE_BETWEEN: f32 = 3.0;
         let mut instances = vec![vec![]];
-        instances.resize(2, vec![]);
+        instances.resize(3, vec![]);
         for x in 0..NUM_INSTANCES_PER_ROW {
             for z in 0..NUM_INSTANCES_PER_ROW {
                 let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
@@ -242,11 +242,13 @@ impl State {
                 let instance = Instance { position, rotation };
 
                 let mut rng = rand::rng();
-                let torus = rng.random_bool(0.5);
-                if torus {
+                let torus = rng.random_range(0..3);
+                if torus == 0 {
                     instances[0].push(instance);
-                } else {
+                } else if torus == 1 {
                     instances[1].push(instance);
+                } else if torus == 2 {
+                    instances[2].push(instance);
                 }
             }
         }
@@ -290,6 +292,8 @@ impl State {
                             .await?);
         obj_models.push(resources::load_model("torus.obj", &device, &queue, &texture_bind_group_layout)
                             .await?);
+        obj_models.push(resources::load_model("monkey.obj", &device, &queue, &texture_bind_group_layout)
+            .await?);
 
 
         let light_uniform = LightUniform {
@@ -385,7 +389,8 @@ impl State {
                     .orientation(instance[i].rotation.to_float())
                     .inv_mass(1.0)
                     .mesh(mesh)
-                    .index(i);
+                    .index(i)
+                    .omega(Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()).as_dvec3());
                 physics.rigidbodies.add_body(body);
             }
         }
