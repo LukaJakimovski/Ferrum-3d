@@ -3,14 +3,16 @@ use ferrum_core::math::{Float, Quat, Vec3};
 #[derive(Default)]
 #[derive(Clone)]
 pub struct RigidBody {
-    pub(crate) position:     Vec3,    // hot - read every frame
-    pub(crate) velocity:    Vec3,    // hot - read every frame
-    pub(crate) orientation:  Quat,    // hot - read every frame
-    pub(crate) _force:        Vec3,    // hot - written every frame
-    pub(crate) _inv_mass:      Float,     // warm
-    pub(crate) _inertia:       Vec3,    // warm
-    pub(crate) _restitution:   Float,     // cold - only on collision
-    pub(crate) _is_sleeping:   bool,    // cold
+    pub(crate) position: Vec3,    // hot - read every frame
+    pub(crate) velocity: Vec3,    // hot - read every frame
+    pub(crate) orientation: Quat,    // hot - read every frame
+    pub(crate) _force: Vec3,    // hot - written every frame
+    pub(crate) mesh: usize,
+    pub(crate) _inv_mass: Float,     // warm
+    pub(crate) _inertia: Vec3,    // warm
+    pub(crate) _restitution: Float,     // cold - only on collision
+    pub(crate) _is_sleeping: bool,    // cold
+    pub(crate) index: usize,
 }
 
 impl RigidBody {
@@ -25,6 +27,8 @@ impl RigidBody {
         body._inertia = Vec3::ZERO;
         body._restitution = 0.0;
         body._is_sleeping = false;
+        body.mesh = 0;
+        body.index = 0;
         body
     }
     #[allow(unused)]
@@ -60,6 +64,16 @@ impl RigidBody {
     #[allow(unused)]
     pub fn restitution(mut self, restitution: Float) -> Self {
         self._restitution = restitution;
+        self
+    }
+
+    pub fn mesh(mut self, mesh: usize) -> Self {
+        self.mesh = mesh;
+        self
+    }
+    
+    pub fn index(mut self, index: usize) -> Self {
+        self.index = index;
         self
     }
 }

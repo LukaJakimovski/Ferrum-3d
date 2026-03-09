@@ -2,14 +2,16 @@ use ferrum_core::math::{Vec3, Quat, Float};
 pub use crate::rigidbodybuilder::RigidBody;
 
 pub struct RigidBodySet {
-    pub(crate) positions:     Vec<Vec3>,    // hot - read every frame
-    pub(crate) velocities:    Vec<Vec3>,    // hot - read every frame
-    pub(crate) orientations:  Vec<Quat>,    // hot - read every frame
-    pub(crate) _forces:        Vec<Vec3>,    // hot - written every frame
-    pub(crate) inv_mass:      Vec<Float>,     // warm
-    pub(crate) _inertia:       Vec<Vec3>,    // warm
-    pub(crate) _restitution:   Vec<Float>,     // cold - only on collision
-    pub(crate) _is_sleeping:   Vec<bool>,    // cold
+    pub(crate) positions: Vec<Vec3>,   // hot  - read every frame
+    pub(crate) velocities: Vec<Vec3>,   // hot  - read every frame
+    pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
+    pub(crate) mesh: Vec<usize>,  // hot  - read every frame
+    pub(crate) _forces: Vec<Vec3>,   // hot  - written every frame
+    pub(crate) inv_mass: Vec<Float>,  // warm - read once every frame
+    pub(crate) _inertia: Vec<Vec3>,   // warm - read once every frame
+    pub(crate) _restitution: Vec<Float>,  // cold - only on collision
+    pub(crate) _is_sleeping: Vec<bool>,   // cold
+    pub(crate) index: Vec<usize>,
 }
 
 impl RigidBodySet {
@@ -37,17 +39,23 @@ impl RigidBodySet {
         self.orientations[body_id]
     }
     pub fn get_inv_mass(&self, body_id: usize) -> Float { self.inv_mass[body_id] }
+
+    pub fn get_mesh(&self, body_id: usize) -> usize { self.mesh[body_id] }
+
+    pub fn get_index(&self, body_id: usize) -> usize { self.index[body_id] }
     
     pub fn new(num_bodies: usize) -> RigidBodySet {
         RigidBodySet {
-            positions:     vec![Vec3::ZERO; num_bodies],
-            velocities:    vec![Vec3::ZERO; num_bodies],
-            orientations:  vec![Quat::IDENTITY; num_bodies],
+            positions:      vec![Vec3::ZERO; num_bodies],
+            velocities:     vec![Vec3::ZERO; num_bodies],
+            orientations:   vec![Quat::IDENTITY; num_bodies],
             _forces:        vec![Vec3::ZERO; num_bodies],
-            inv_mass:      vec![0.0; num_bodies],
+            inv_mass:       vec![0.0; num_bodies],
             _inertia:       vec![Vec3::ZERO; num_bodies],
             _restitution:   vec![0.0; num_bodies],
             _is_sleeping:   vec![false; num_bodies],
+            mesh:           vec![0; num_bodies],
+            index:          vec![0; num_bodies],
         }
     }
     
@@ -63,6 +71,8 @@ impl RigidBodySet {
         self._inertia.push(Vec3::ZERO);
         self._restitution.push(0.0);
         self._is_sleeping.push(false);
+        self.mesh.push(0);
+        self.index.push(0);
     }
     
     pub fn add_body(&mut self, builder: RigidBody){
@@ -74,6 +84,8 @@ impl RigidBodySet {
         self._inertia.push(builder._inertia);
         self._restitution.push(builder._restitution);
         self._is_sleeping.push(false);
+        self.mesh.push(builder.mesh);
+        self.index.push(builder.index);
     }
     
 }

@@ -66,6 +66,7 @@ impl model::Vertex for InstanceRaw {
     }
 }
 
+#[derive(Clone)]
 pub struct Instance {
     pub position: Vec3,
     pub rotation: Quat,
@@ -84,29 +85,30 @@ impl Instance {
 
 impl State {
     pub fn update_instances(&mut self) {
-        for (id, instance) in self.instances.iter_mut().enumerate() {
+        for id in 0..self.physics.rigidbodies.len() {
+            let mesh = self.physics.rigidbodies.get_mesh(id);
+            let index = self.physics.rigidbodies.get_index(id);
             let pos = self.physics.rigidbodies.get_position(id);
-            instance.position = Vec3::new(pos.x as f32, pos.y as f32, pos.z as f32);
-
             let rot = self.physics.rigidbodies.get_orientation(id);
-            let rot = rot.to_f32();
-            instance.rotation = rot;
+
+            self.instances[mesh][index].position = pos.to_f32();
+            self.instances[mesh][index].rotation = rot.to_f32();
         }
     }
 
     #[allow(unused)]
-    pub(crate) fn add_instance(&mut self, instance: Instance) {
+    pub(crate) fn add_instance(&mut self, instance: Instance, mesh: usize) {
         let body = RigidBody::builder()
             .position(instance.position.to_float())
             .orientation(instance.rotation.to_float());
 
         self.physics.rigidbodies.add_body(body);
-        self.instances.push(instance);
+        self.instances[mesh].push(instance);
 
 
-        self.instance_buffer.destroy();
-        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        self.instance_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        self.instance_buffers[mesh].destroy();
+        let instance_data = self.instances[mesh].iter().map(Instance::to_raw).collect::<Vec<_>>();
+        self.instance_buffers[mesh] = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_data),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,

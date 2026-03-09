@@ -1,7 +1,6 @@
 
 use std::sync::Arc;
 use std::{f32::consts::PI, iter};
-
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
@@ -19,6 +18,7 @@ use ferrum_core::math::{Float, ToFloat};
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody::{RigidBody, RigidBodySet};
 use ferrum_physics::update::Physics;
+use rand::RngExt;
 
 const NUM_INSTANCES_PER_ROW: u32 = 12;
 
@@ -39,16 +39,16 @@ pub struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     render_pipeline: wgpu::RenderPipeline,
-    obj_model: model::Model,
+    obj_models: Vec<model::Model>,
     camera: camera::Camera,
     projection: camera::Projection,
     pub camera_controller: camera::CameraController,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    instances: Vec<Instance>,
+    instances: Vec<Vec<Instance>>,
     #[allow(dead_code)]
-    instance_buffer: wgpu::Buffer,
+    instance_buffers: Vec<wgpu::Buffer>,
     depth_texture: texture::Texture,
     is_surface_configured: bool,
     light_uniform: LightUniform,
@@ -221,34 +221,46 @@ impl State {
         });
 
         const SPACE_BETWEEN: f32 = 3.0;
-        let instances = (0..NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                    let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+        let mut instances = vec![vec![]];
+        instances.resize(2, vec![]);
+        for x in 0..NUM_INSTANCES_PER_ROW {
+            for z in 0..NUM_INSTANCES_PER_ROW {
+                let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
+                let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
 
-                    let position = Vec3 { x, y: 0.0, z };
+                let position = Vec3 { x, y: 0.0, z };
 
-                    let rotation = if position == Vec3::ZERO {
-                        Quat::from_axis_angle(
-                            Vec3::Z,
-                            0.0f32.to_radians(),
-                        )
-                    } else {
-                        Quat::from_axis_angle(position.normalize(), 45.0f32.to_radians())
-                    };
+                let rotation = if position == Vec3::ZERO {
+                    Quat::from_axis_angle(
+                        Vec3::Z,
+                        0.0f32.to_radians(),
+                    )
+                } else {
+                    Quat::from_axis_angle(position.normalize(), 45.0f32.to_radians())
+                };
 
-                    Instance { position, rotation }
-                })
-            })
-            .collect::<Vec<_>>();
+                let instance = Instance { position, rotation };
 
-        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
+                let mut rng = rand::rng();
+                let torus = rng.random_bool(0.5);
+                if torus {
+                    instances[0].push(instance);
+                } else {
+                    instances[1].push(instance);
+                }
+            }
+        }
+
+        let mut instance_buffers = vec![];
+        for instance in &instances {
+            let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            instance_buffers.push(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }));
+        }
+
 
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -273,10 +285,12 @@ impl State {
             }],
             label: Some("camera_bind_group"),
         });
+        let mut obj_models = vec![];
+        obj_models.push(resources::load_model("blender_cube.obj", &device, &queue, &texture_bind_group_layout)
+                            .await?);
+        obj_models.push(resources::load_model("torus.obj", &device, &queue, &texture_bind_group_layout)
+                            .await?);
 
-        let obj_model =
-            resources::load_model("blender_cube.obj", &device, &queue, &texture_bind_group_layout)
-                .await?;
 
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
@@ -364,12 +378,16 @@ impl State {
             )
         };
         let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0)};
-        for instance in instances.iter() {
-            let body = RigidBody::builder()
-                .position(instance.position.to_float())
-                .orientation(instance.rotation.to_float())
-                .inv_mass(1.0);
-            physics.rigidbodies.add_body(body);
+        for (mesh, instance) in instances.iter().enumerate() {
+            for i in 0..instance.len(){
+                let body = RigidBody::builder()
+                    .position(instance[i].position.to_float())
+                    .orientation(instance[i].rotation.to_float())
+                    .inv_mass(1.0)
+                    .mesh(mesh)
+                    .index(i);
+                physics.rigidbodies.add_body(body);
+            }
         }
 
         Ok(Self {
@@ -379,7 +397,7 @@ impl State {
             queue,
             config,
             render_pipeline,
-            obj_model,
+            obj_models,
             camera,
             projection,
             camera_controller,
@@ -387,7 +405,7 @@ impl State {
             camera_bind_group,
             camera_uniform,
             instances,
-            instance_buffer,
+            instance_buffers,
             depth_texture,
             is_surface_configured: false,
             light_uniform,
@@ -440,12 +458,15 @@ impl State {
         self.update_instances();
 
         // Rebuild the raw instance data and write to the buffer
-        let instance_data = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
-        self.queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&instance_data),
-        );
+        for (mesh, instance) in self.instances.iter().enumerate() {
+            let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            self.queue.write_buffer(
+                &self.instance_buffers[mesh],
+                0,
+                bytemuck::cast_slice(&instance_data),
+            );
+        }
+
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -497,21 +518,23 @@ impl State {
                 multiview_mask: None,
             });
 
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffers[0].slice(..));
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
-                &self.obj_model,
+                &self.obj_models[0],
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw_model_instanced(
-                &self.obj_model,
-                0..self.instances.len() as u32,
-                &self.camera_bind_group,
-                &self.light_bind_group,
-            );
+            for (mesh, instance_buffer) in self.instance_buffers.iter().enumerate() {
+                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.draw_model_instanced(
+                    &self.obj_models[mesh],
+                    0..self.instances[mesh].len() as u32,
+                    &self.camera_bind_group,
+                    &self.light_bind_group,
+                );
+            }
         }
         self.queue.submit(iter::once(encoder.finish()));
         output.present();

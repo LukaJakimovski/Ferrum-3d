@@ -17,4 +17,5 @@ tobj       = { workspace = true }
 wgpu       = { workspace = true }
 winit      = { workspace = true }
 image      = { workspace = true }
+rand = "0.10.0"
 # rand       = { workspace = true}
