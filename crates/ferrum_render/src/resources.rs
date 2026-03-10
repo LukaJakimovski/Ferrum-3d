@@ -1,7 +1,9 @@
 use std::io::{BufReader, Cursor};
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
-
+use ferrum_core::math;
+use ferrum_core::math::Float;
+use ferrum_physics::physics_vertex::PhysicsVertex;
 use crate::{model, texture};
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
@@ -34,6 +36,46 @@ pub async fn load_texture(
 ) -> anyhow::Result<texture::Texture> {
     let data = load_binary(file_name).await?;
     texture::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
+}
+
+
+pub async fn get_vertices_and_normals(file_name: &str) -> Vec<PhysicsVertex> {
+    let obj_text = load_string(file_name).await.unwrap();
+    let obj_cursor = Cursor::new(obj_text);
+    let mut obj_reader = BufReader::new(obj_cursor);
+
+    let (models, _obj_materials) = tobj::load_obj_buf_async(
+        &mut obj_reader,
+        &tobj::LoadOptions {
+            triangulate: true,
+            single_index: true,
+            ..Default::default()
+        },
+        |p| async move {
+            let mat_text = load_string(&p).await.unwrap();
+            tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
+        },
+    )
+        .await.unwrap();
+
+    let m = &models[0].mesh;
+    (0..m.positions.len() / 3)
+        .map(|i| PhysicsVertex {
+            position: math::Vec3::new(
+                m.positions[i * 3] as Float / 10.0,
+                m.positions[i * 3 + 1] as Float / 10.0,
+                m.positions[i * 3 + 2] as Float / 10.0,
+            ),
+            normal: math::Vec3::new(
+                m.normals[i * 3] as Float,
+                m.normals[i * 3 + 1] as Float,
+                m.normals[i * 3 + 2] as Float,
+            ),
+            w:  (- m.normals[i * 3] * m.positions[i * 3] / 10.0
+                - m.normals[i * 3 + 1] * m.positions[i * 3 + 1] / 10.0
+                - m.normals[i * 3 + 2] * m.positions[i * 3 + 2] / 10.0) as Float
+        })
+        .collect::<Vec<_>>()
 }
 
 pub async fn load_model(

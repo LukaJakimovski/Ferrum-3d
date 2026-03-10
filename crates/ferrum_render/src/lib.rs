@@ -21,6 +21,8 @@ use ferrum_physics::update::Physics;
 #[allow(unused)]
 use rand::RngExt;
 use ferrum_core::math;
+use ferrum_physics::physics_vertex::PhysicsVertex;
+use crate::resources::get_vertices_and_normals;
 
 #[allow(unused)]
 const NUM_INSTANCES_PER_ROW: u32 = 12;
@@ -297,12 +299,12 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        obj_models.push(resources::load_model("blender_cube.obj", &device, &queue, &texture_bind_group_layout)
-                            .await?);
-        obj_models.push(resources::load_model("torus.obj", &device, &queue, &texture_bind_group_layout)
-                            .await?);
-        obj_models.push(resources::load_model("monkey.obj", &device, &queue, &texture_bind_group_layout)
-            .await?);
+        let obj_names = vec!["blender_cube.obj", "torus.obj", "monkey.obj"];
+
+        for name in &obj_names {
+            obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
+                .await?);
+        }
 
 
         let light_uniform = LightUniform {
@@ -390,7 +392,13 @@ impl State {
                 shader,
             )
         };
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0)};
+        let mut polyhedrons: Vec<Vec<PhysicsVertex>> = vec![vec![]];
+        for name in &obj_names {
+            polyhedrons.push(get_vertices_and_normals(name).await);
+        }
+
+
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons };
         for (mesh, instance) in instances.iter().enumerate() {
             for i in 0..instance.len(){
                 let body = RigidBody::builder()
@@ -406,6 +414,8 @@ impl State {
         physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
+
+
         Ok(Self {
             window,
             surface,
