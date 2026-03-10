@@ -66,6 +66,7 @@ pub async fn get_vertices_and_normals(file_name: &str) -> Vec<PhysicsVertex> {
                 m.positions[i * 3 + 1] as Float / 10.0,
                 m.positions[i * 3 + 2] as Float / 10.0,
             ),
+            index: m.indices[i],
             normal: math::Vec3::new(
                 m.normals[i * 3] as Float,
                 m.normals[i * 3 + 1] as Float,
