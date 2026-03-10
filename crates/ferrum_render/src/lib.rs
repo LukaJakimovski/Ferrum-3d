@@ -396,7 +396,7 @@ impl State {
                 let body = RigidBody::builder()
                     .position(instance[i].position.to_float())
                     .orientation(instance[i].rotation.to_float())
-                    .inv_mass(1.0)
+                    .inv_mass(0.5)
                     .mesh(mesh)
                     .index(i)
                     .omega(math::Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()));
