@@ -1,9 +1,7 @@
 use std::io::{BufReader, Cursor};
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
-use ferrum_core::math;
-use ferrum_core::math::Float;
-use ferrum_physics::physics_vertex::PhysicsVertex;
+use ferrum_physics::physics_vertex::Face;
 use crate::{model, texture};
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
@@ -39,7 +37,7 @@ pub async fn load_texture(
 }
 
 
-pub async fn get_vertices_and_normals(file_name: &str) -> Vec<PhysicsVertex> {
+pub async fn get_vertices_and_normals(file_name: &str) -> Vec<Face> {
     let obj_text = load_string(file_name).await.unwrap();
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -59,24 +57,38 @@ pub async fn get_vertices_and_normals(file_name: &str) -> Vec<PhysicsVertex> {
         .await.unwrap();
 
     let m = &models[0].mesh;
-    (0..m.positions.len() / 3)
-        .map(|i| PhysicsVertex {
-            position: math::Vec3::new(
-                m.positions[i * 3] as Float / 10.0,
-                m.positions[i * 3 + 1] as Float / 10.0,
-                m.positions[i * 3 + 2] as Float / 10.0,
-            ),
-            index: m.indices[i],
-            normal: math::Vec3::new(
-                m.normals[i * 3] as Float,
-                m.normals[i * 3 + 1] as Float,
-                m.normals[i * 3 + 2] as Float,
-            ),
-            w:  (- m.normals[i * 3] * m.positions[i * 3] / 10.0
-                - m.normals[i * 3 + 1] * m.positions[i * 3 + 1] / 10.0
-                - m.normals[i * 3 + 2] * m.positions[i * 3 + 2] / 10.0) as Float
-        })
-        .collect::<Vec<_>>()
+
+    let mut p: Vec<Face> = vec![];
+    for c in m.indices.chunks(9){
+        let mut f: Face = Default::default();
+        f.vert[0][0] = m.positions[c[0] as usize] * 10.0;
+        f.vert[0][1] = m.positions[c[1] as usize] * 10.0;
+        f.vert[0][2] = m.positions[c[2] as usize] * 10.0;
+        f.vert[1][0] = m.positions[c[3] as usize] * 10.0;
+        f.vert[1][1] = m.positions[c[4] as usize] * 10.0;
+        f.vert[1][2] = m.positions[c[5] as usize] * 10.0;
+        f.vert[2][0] = m.positions[c[6] as usize] * 10.0;
+        f.vert[2][1] = m.positions[c[7] as usize] * 10.0;
+        f.vert[2][2] = m.positions[c[8] as usize] * 10.0;
+        let dx1 = f.vert[1].x - f.vert[0].x;
+        let dy1 = f.vert[1].y - f.vert[0].y;
+        let dz1 = f.vert[1].z - f.vert[0].z;
+        let dx2 = f.vert[2].x - f.vert[1].x;
+        let dy2 = f.vert[2].y - f.vert[1].y;
+        let dz2 = f.vert[2].z - f.vert[1].z;
+        let n: Vec3 = Vec3::new(
+            dy1 * dz2 - dy2 * dz1,
+            dz1 * dx2 - dz2 * dx1,
+            dx1 * dy2 - dx2 * dy1
+        );
+        f.norm = n / n.length();
+
+        f.w = - f.norm.x * f.vert[0].x
+              - f.norm.y * f.vert[0].y
+              - f.norm.z * f.vert[0].z;
+        p.push(f);
+    }
+    p
 }
 
 pub async fn load_model(

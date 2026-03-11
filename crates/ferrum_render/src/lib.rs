@@ -21,7 +21,8 @@ use ferrum_physics::update::Physics;
 #[allow(unused)]
 use rand::RngExt;
 use ferrum_core::math;
-use ferrum_physics::physics_vertex::PhysicsVertex;
+use ferrum_physics::mass_properties::comp_volume_integrals;
+use ferrum_physics::physics_vertex::Face;
 use crate::resources::get_vertices_and_normals;
 
 #[allow(unused)]
@@ -299,7 +300,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["blender_cube.obj", "torus.obj", "monkey.obj"];
+        let obj_names = vec!["blender_cube.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
 
         for name in &obj_names {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
@@ -310,7 +311,7 @@ impl State {
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
             _padding: 0,
-            color: [1.0 / 3.0, 2.0 /3.0, 1.0],
+            color: [1.0, 1.0, 1.0],
             _padding2: 0,
         };
 
@@ -392,7 +393,7 @@ impl State {
                 shader,
             )
         };
-        let mut polyhedrons: Vec<Vec<PhysicsVertex>> = vec![vec![]];
+        let mut polyhedrons: Vec<Vec<Face>> = vec![vec![]];
         for name in &obj_names {
             polyhedrons.push(get_vertices_and_normals(name).await);
         }
@@ -414,6 +415,7 @@ impl State {
         physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
+        comp_volume_integrals(&physics.polyhedrons[1]);
 
 
         Ok(Self {
@@ -522,9 +524,9 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: self.light_uniform.color[0] as f64 / 10.0,
-                            g: self.light_uniform.color[1] as f64 / 10.0,
-                            b: self.light_uniform.color[2] as f64 / 10.0,
+                            r: 0.1,
+                            g: 0.2,
+                            b: 0.3,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
