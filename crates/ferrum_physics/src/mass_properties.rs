@@ -1,7 +1,7 @@
 use ferrum_core::math::{Float, Vec3};
-use crate::physics_vertex::{Face};
+use crate::physics_vertex::{Face, Polyhedron};
 
-fn comp_projection_integrals(f: &Face, A: usize, B: usize) ->
+fn comp_projection_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize) ->
                                                     (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float){
     //Only used here
     let (mut a0, mut a1, mut da): (Float, Float, Float);
@@ -20,10 +20,10 @@ mut Pabb, mut Pbbb):
 
     // Calculations
     for i in 0..3 {
-        a0 = f.vert[i][A];
-        b0 = f.vert[i][B];
-        a1 = f.vert[(i + 1) % 3][A];
-        b1 = f.vert[(i + 2) % 3][B];
+        a0 = v[f.vert[i]][A];
+        b0 = v[f.vert[i]][B];
+        a1 = v[f.vert[(i + 1) % 3]][A];
+        b1 = v[f.vert[(i + 2) % 3]][B];
         da = a1 - a0;
         db = b1 - b0;
         a0_2 = a0 * a0; a0_3 = a0_2 * a0; a0_4 = a0_3 * a0;
@@ -67,10 +67,7 @@ mut Pabb, mut Pbbb):
 }
 
 
-fn comp_face_integrals(f: &Face, A: usize, B: usize) -> (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float){
-    // Defined Elsewhere
-    let C: usize = 2;
-    
+fn comp_face_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize, C: usize) -> (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float){
     let n: Vec3;
     let w: Float;
     let (k1, k2, k3, k4): (Float, Float, Float, Float);
@@ -80,7 +77,7 @@ fn comp_face_integrals(f: &Face, A: usize, B: usize) -> (Float, Float, Float, Fl
         (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float);
 
     let (P1, Pa, Pb, Paa, Pab, Pbb, Paaa, Paab, Pabb, Pbbb) 
-        = comp_projection_integrals(&f, A, B);
+        = comp_projection_integrals(&f, v, A, B);
     w = f.w;
     n = f.norm;
     k1 = 1.0 / n[C];
@@ -114,14 +111,14 @@ fn comp_face_integrals(f: &Face, A: usize, B: usize) -> (Float, Float, Float, Fl
 
 
 
-pub fn comp_volume_integrals(p: &Vec<Face>) -> (Float, Vec3, Vec3, Vec3){
+pub fn comp_volume_integrals(p: &Polyhedron) -> (Float, Vec3, Vec3, Vec3){
     let mut n: Vec3;
     let (mut T0, mut T1, mut T2, mut TP): (Float, Vec3, Vec3, Vec3) =
         (0.0, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
     let (mut A, mut B, mut C);
 
     for i in 0..3 {
-        let f = p[i];
+        let f = p.faces[i];
         
         n = f.norm.abs();
         if n.x > n.y && n.x > n.x { C = 0}
@@ -131,7 +128,7 @@ pub fn comp_volume_integrals(p: &Vec<Face>) -> (Float, Vec3, Vec3, Vec3){
         B = (A + 1) % 3;
 
         let (Fa, Fb, Fc, Faa, Fbb, Fcc, Faaa, Fbbb, Fccc, Faab, Fbbc, Fcca) =
-            comp_face_integrals(&f, A, B);
+            comp_face_integrals(&f, &p.vert, A, B, C);
 
         if A == 0 { T0 += f.norm.x * Fa}
         if B == 0 { T0 += f.norm.x * Fb}

@@ -1,11 +1,11 @@
 use ferrum_core::math::{Float, Quat, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
-use crate::physics_vertex::{Face};
+use crate::physics_vertex::{Face, Polyhedron};
 use crate::rigidbody::RigidBodySet;
 
 pub struct Physics {
     pub rigidbodies: RigidBodySet,
-    pub polyhedrons: Vec<Vec<Face>>
+    pub polyhedrons: Vec<Polyhedron>
 }
 
 impl Physics{

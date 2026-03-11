@@ -1,7 +1,7 @@
 use std::io::{BufReader, Cursor};
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
-use ferrum_physics::physics_vertex::Face;
+use ferrum_physics::physics_vertex::{Face, Polyhedron};
 use crate::{model, texture};
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
@@ -37,7 +37,7 @@ pub async fn load_texture(
 }
 
 
-pub async fn get_vertices_and_normals(file_name: &str) -> Vec<Face> {
+pub async fn get_vertices_and_normals(file_name: &str) -> Polyhedron {
     let obj_text = load_string(file_name).await.unwrap();
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -58,35 +58,22 @@ pub async fn get_vertices_and_normals(file_name: &str) -> Vec<Face> {
 
     let m = &models[0].mesh;
 
-    let mut p: Vec<Face> = vec![];
-    for c in m.indices.chunks(9){
+    let mut p: Polyhedron = Default::default();
+    p.vert = bytemuck::cast_slice(&m.positions).to_vec();;
+    for c in m.indices.chunks(3){
         let mut f: Face = Default::default();
-        f.vert[0][0] = m.positions[c[0] as usize] * 10.0;
-        f.vert[0][1] = m.positions[c[1] as usize] * 10.0;
-        f.vert[0][2] = m.positions[c[2] as usize] * 10.0;
-        f.vert[1][0] = m.positions[c[3] as usize] * 10.0;
-        f.vert[1][1] = m.positions[c[4] as usize] * 10.0;
-        f.vert[1][2] = m.positions[c[5] as usize] * 10.0;
-        f.vert[2][0] = m.positions[c[6] as usize] * 10.0;
-        f.vert[2][1] = m.positions[c[7] as usize] * 10.0;
-        f.vert[2][2] = m.positions[c[8] as usize] * 10.0;
-        let dx1 = f.vert[1].x - f.vert[0].x;
-        let dy1 = f.vert[1].y - f.vert[0].y;
-        let dz1 = f.vert[1].z - f.vert[0].z;
-        let dx2 = f.vert[2].x - f.vert[1].x;
-        let dy2 = f.vert[2].y - f.vert[1].y;
-        let dz2 = f.vert[2].z - f.vert[1].z;
-        let n: Vec3 = Vec3::new(
-            dy1 * dz2 - dy2 * dz1,
-            dz1 * dx2 - dz2 * dx1,
-            dx1 * dy2 - dx2 * dy1
-        );
+        f.vert[0] = m.indices[c[0] as usize] as usize;
+        f.vert[1] = m.indices[c[1] as usize] as usize;
+        f.vert[2] = m.indices[c[2] as usize] as usize;
+        let d1 = p.vert[f.vert[1]] - p.vert[f.vert[0]];
+        let d2 = p.vert[f.vert[2]] - p.vert[f.vert[0]];
+        let n = d1.cross(d2);
         f.norm = n / n.length();
 
-        f.w = - f.norm.x * f.vert[0].x
-              - f.norm.y * f.vert[0].y
-              - f.norm.z * f.vert[0].z;
-        p.push(f);
+        f.w = - f.norm.x * p.vert[f.vert[0]].x
+              - f.norm.y * p.vert[f.vert[1]].y
+              - f.norm.z * p.vert[f.vert[2]].z;
+        p.faces.push(f);
     }
     p
 }

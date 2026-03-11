@@ -22,7 +22,7 @@ use ferrum_physics::update::Physics;
 use rand::RngExt;
 use ferrum_core::math;
 use ferrum_physics::mass_properties::comp_volume_integrals;
-use ferrum_physics::physics_vertex::Face;
+use ferrum_physics::physics_vertex::{Face, Polyhedron};
 use crate::resources::get_vertices_and_normals;
 
 #[allow(unused)]
@@ -393,7 +393,7 @@ impl State {
                 shader,
             )
         };
-        let mut polyhedrons: Vec<Vec<Face>> = vec![vec![]];
+        let mut polyhedrons: Vec<Polyhedron> = Default::default();
         for name in &obj_names {
             polyhedrons.push(get_vertices_and_normals(name).await);
         }
@@ -415,7 +415,7 @@ impl State {
         physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
-        comp_volume_integrals(&physics.polyhedrons[1]);
+        comp_volume_integrals(&physics.polyhedrons[0]);
 
 
         Ok(Self {
