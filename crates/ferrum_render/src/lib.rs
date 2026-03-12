@@ -395,7 +395,7 @@ impl State {
         };
         let mut polyhedrons: Vec<Polyhedron> = Default::default();
         for name in &obj_names {
-            polyhedrons.push(load_polyhedron(name).await);
+            polyhedrons.push(load_polyhedron(name));
         }
 
 
@@ -408,7 +408,7 @@ impl State {
                     .inv_mass(0.5)
                     .mesh(mesh)
                     .index(i)
-                    .omega(math::Vec3::new(0.5f32, 0.5f32, 0.5f32));
+                    .omega(math::Vec3::new(0.5, 0.5, 0.5));
                 physics.rigidbodies.add_body(body);
                 physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }

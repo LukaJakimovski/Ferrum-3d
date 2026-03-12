@@ -21,11 +21,11 @@ mut Pabb, mut Pbbb):
         (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
     // Calculations
-    for i in 0..f.num_verts {
+    for i in 0..f.verts.len() {
         a0 = v[f.verts[i]][A];
         b0 = v[f.verts[i]][B];
-        a1 = v[f.verts[(i + 1) % f.num_verts]][A];
-        b1 = v[f.verts[(i + 1) % f.num_verts]][B];
+        a1 = v[f.verts[(i + 1) % f.verts.len()]][A];
+        b1 = v[f.verts[(i + 1) % f.verts.len()]][B];
         da = a1 - a0;
         db = b1 - b0;
         a0_2 = a0 * a0; a0_3 = a0_2 * a0; a0_4 = a0_3 * a0;
@@ -78,7 +78,7 @@ fn comp_face_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize, C: usize) ->
     let (Fa, Fb, Fc, Faa, Fbb, Fcc, Faaa, Fbbb, Fccc, Faab, Fbbc, Fcca):
         (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float);
 
-    let (P1, Pa, Pb, Paa, Pab, Pbb, Paaa, Paab, Pabb, Pbbb)
+    let (P1, Pa, Paa, Paaa, Pb, Pbb, Pbbb, Pab, Paab, Pabb)
         = comp_projection_integrals(&f, v, A, B);
     w = f.w;
     n = f.norm;

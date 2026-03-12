@@ -3,7 +3,7 @@ use crate::math::{Float, Mat3, Quat, Vec3};
 #[inline] fn quat_add(a: Quat, b: Quat) -> Quat {
     Quat::from_xyzw(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w)
 }
-#[inline] fn quat_scale(q: Quat, s: f32) -> Quat {
+#[inline] fn quat_scale(q: Quat, s: Float) -> Quat {
     Quat::from_xyzw(q.x * s, q.y * s, q.z * s, q.w * s)
 }
 

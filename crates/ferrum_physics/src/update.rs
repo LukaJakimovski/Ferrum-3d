@@ -38,7 +38,7 @@ impl Physics{
             integrate_rk4(&mut next_bodies.orientations[body_id], &mut next_bodies.omega[body_id], next_bodies.inertia[body_id], next_bodies.inv_inertia[body_id], next_bodies.torques[body_id], dt);
             next_bodies.rotate(Quat::from_axis_angle(next_bodies.omega[body_id].normalize(), next_bodies.omega[body_id].length() * dt), body_id);
             let energy = 0.5 * next_bodies.omega[body_id].dot(next_bodies.inertia[body_id] * next_bodies.omega[body_id]);
-            println!("energy: {}J", energy);
+            println!("energy: {:.4}J", energy);
         }
         self.rigidbodies = next_bodies;
     }

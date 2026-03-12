@@ -1,6 +1,9 @@
+use std::fs;
 use std::io::{BufReader, Cursor};
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
+use ferrum_core::math;
+use ferrum_core::math::Float;
 use ferrum_physics::physics_vertex::{Face, Polyhedron};
 use crate::{model, texture};
 
@@ -36,8 +39,66 @@ pub async fn load_texture(
     texture::Texture::from_bytes(device, queue, &data, file_name, is_normal_map)
 }
 
+pub fn load_polyhedron(file_name: &str) -> Polyhedron {
+    let path = std::env::current_dir()
+        .expect("failed to get current dir")
+        .join("crates/ferrum_render/res")
+        .join(file_name);
+    let contents = fs::read_to_string(path)
+        .expect("Could not read file");
 
-pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
+    let mut p: Polyhedron = Default::default();
+
+
+    for line in contents.lines() {
+        if line.as_bytes()[0] == 'v' as u8 {
+            if line.as_bytes()[1] == ' ' as u8 {
+                let floats: Vec<Float> = line
+                    .split_whitespace()
+                    .skip(1)
+                    .map(|s| s.parse::<Float>().expect("Failed to parse float"))
+                    .collect();
+
+                p.vert.push(math::Vec3::new(
+                    floats[0] as Float,
+                    floats[1] as Float,
+                    floats[2] as Float));
+
+            }
+        } else if line.as_bytes()[0] == 'f' as u8 {
+            let mut f: Face = Default::default();
+
+            let indices: Vec<Vec<usize>> = line
+                .split_whitespace()
+                .skip(1)
+                .map(|group| {
+                    group.split('/')
+                        .map(|s| s.parse::<usize>()
+                            .expect("Failed to parse usize"))
+                        .collect()
+                })
+                .collect();
+            for i in 0..indices.len() {
+                f.verts.push(indices[i][0] - 1);
+            }
+
+            let d1 = p.vert[f.verts[1]] - p.vert[f.verts[0]];
+            let d2 = p.vert[f.verts[2]] - p.vert[f.verts[0]];
+            let n = d1.cross(d2);
+            f.norm = n / n.length();
+
+            f.w = - f.norm.x * p.vert[f.verts[0]].x
+                - f.norm.y * p.vert[f.verts[0]].y
+                - f.norm.z * p.vert[f.verts[0]].z;
+            p.faces.push(f);
+        }
+    }
+    p
+}
+
+
+
+pub async fn _load_polyhedron_tobj(file_name: &str) -> Polyhedron {
     let obj_text = load_string(file_name).await.unwrap();
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);
@@ -45,7 +106,7 @@ pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
     let (models, _obj_materials) = tobj::load_obj_buf_async(
         &mut obj_reader,
         &tobj::LoadOptions {
-            triangulate: false,
+            triangulate: true,
             single_index: false,
             reorder_data: false,
             ..Default::default()
@@ -60,7 +121,10 @@ pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
     let m = &models[0].mesh;
 
     let mut p: Polyhedron = Default::default();
-    p.vert = bytemuck::cast_slice(&m.positions).to_vec();
+    let verts: Vec<glam::Vec3> = bytemuck::cast_slice(&m.positions).to_vec();
+    for vert in verts{
+        p.vert.push(math::Vec3::new(vert.x as f64, vert.y as f64, vert.z as f64));
+    }
     let mut i = 0;
     let len;
     if !m.face_arities.is_empty(){
@@ -71,13 +135,11 @@ pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
     for c in 0..len{
         let mut f: Face = Default::default();
         if !m.face_arities.is_empty(){
-            f.num_verts = m.face_arities[c] as usize;
             for _v in 0..m.face_arities[c]{
                 f.verts.push(m.indices[i] as usize);
                 i += 1;
             }
         } else{
-            f.num_verts = 3;
             for _v in 0..3{
                 f.verts.push(m.indices[i] as usize);
                 i += 1;
@@ -88,7 +150,7 @@ pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
         let d1 = p.vert[f.verts[1]] - p.vert[f.verts[0]];
         let d2 = p.vert[f.verts[2]] - p.vert[f.verts[0]];
         let n = d1.cross(d2);
-        f.norm = n / (n.length_squared() * n.length_squared());
+        f.norm = n / n.length();
 
         f.w = - f.norm.x * p.vert[f.verts[0]].x
               - f.norm.y * p.vert[f.verts[0]].y
