@@ -45,8 +45,9 @@ pub async fn get_vertices_and_normals(file_name: &str) -> Polyhedron {
     let (models, _obj_materials) = tobj::load_obj_buf_async(
         &mut obj_reader,
         &tobj::LoadOptions {
-            triangulate: true,
-            single_index: true,
+            triangulate: false,
+            single_index: false,
+            reorder_data: false,
             ..Default::default()
         },
         |p| async move {
@@ -59,20 +60,24 @@ pub async fn get_vertices_and_normals(file_name: &str) -> Polyhedron {
     let m = &models[0].mesh;
 
     let mut p: Polyhedron = Default::default();
-    p.vert = bytemuck::cast_slice(&m.positions).to_vec();;
-    for c in m.indices.chunks(3){
+    p.vert = bytemuck::cast_slice(&m.positions).to_vec();
+    let mut i = 0;
+    for c in 0..m.face_arities.len(){
         let mut f: Face = Default::default();
-        f.vert[0] = m.indices[c[0] as usize] as usize;
-        f.vert[1] = m.indices[c[1] as usize] as usize;
-        f.vert[2] = m.indices[c[2] as usize] as usize;
-        let d1 = p.vert[f.vert[1]] - p.vert[f.vert[0]];
-        let d2 = p.vert[f.vert[2]] - p.vert[f.vert[0]];
-        let n = d1.cross(d2);
-        f.norm = n / n.length();
+        f.num_verts = m.face_arities[c] as usize;
+        for _v in 0..m.face_arities[c]{
+            f.verts.push(m.indices[i] as usize);
+            i += 1;
+        }
 
-        f.w = - f.norm.x * p.vert[f.vert[0]].x
-              - f.norm.y * p.vert[f.vert[1]].y
-              - f.norm.z * p.vert[f.vert[2]].z;
+        let d1 = p.vert[f.verts[1]] - p.vert[f.verts[0]];
+        let d2 = p.vert[f.verts[2]] - p.vert[f.verts[0]];
+        let n = d1.cross(d2);
+        f.norm = n / (n.length_squared() * n.length_squared());
+
+        f.w = - f.norm.x * p.vert[f.verts[0]].x
+              - f.norm.y * p.vert[f.verts[0]].y
+              - f.norm.z * p.vert[f.verts[0]].z;
         p.faces.push(f);
     }
     p

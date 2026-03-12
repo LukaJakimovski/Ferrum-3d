@@ -19,11 +19,11 @@ mut Pabb, mut Pbbb):
         (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
     // Calculations
-    for i in 0..3 {
-        a0 = v[f.vert[i]][A];
-        b0 = v[f.vert[i]][B];
-        a1 = v[f.vert[(i + 1) % 3]][A];
-        b1 = v[f.vert[(i + 2) % 3]][B];
+    for i in 0..f.num_verts {
+        a0 = v[f.verts[i]][A];
+        b0 = v[f.verts[i]][B];
+        a1 = v[f.verts[(i + 1) % f.num_verts]][A];
+        b1 = v[f.verts[(i + 2) % f.num_verts]][B];
         da = a1 - a0;
         db = b1 - b0;
         a0_2 = a0 * a0; a0_3 = a0_2 * a0; a0_4 = a0_3 * a0;
@@ -91,19 +91,19 @@ fn comp_face_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize, C: usize) ->
 
     Faa = k1 * Paa;
     Fbb = k1 * Pbb;
-    Fcc = k3 * (n[A].sqrt()*Paa + 2.0*n[A]*n[B]*Pab + (n[B]).sqrt()*Pbb
+    Fcc = k3 * ((n[A]*n[A])*Paa + 2.0*n[A]*n[B]*Pab + (n[B]*n[B])*Pbb
         + w*(2.0*(n[A]*Pa + n[B]*Pb) + w*P1));
 
     Faaa = k1 * Paaa;
     Fbbb = k1 * Pbbb;
-    Fccc = -k4 * ((n[A]*n[A]*n[A])*Paaa + 3.0*(n[A]).sqrt()*n[B]*Paab
-        + 3.0*n[A]*n[B].sqrt()*Pabb + (n[B]*n[B]*n[B])*Pbbb
-        + 3.0*w*(n[A].sqrt()*Paa + 2.0*n[A]*n[B]*Pab + n[B].sqrt()*Pbb)
+    Fccc = -k4 * ((n[A]*n[A]*n[A])*Paaa + 3.0*(n[A]*n[A])*n[B]*Paab
+        + 3.0*n[A]*(n[B]*n[B])*Pabb + (n[B]*n[B]*n[B])*Pbbb
+        + 3.0*w*((n[A]*n[A])*Paa + 2.0*n[A]*n[B]*Pab + (n[B]*n[B])*Pbb)
         + w*w*(3.0*(n[A]*Pa + n[B]*Pb) + w*P1));
 
     Faab = k1 * Paab;
     Fbbc = -k2 * (n[A]*Pabb + n[B]*Pbbb + w*Pbb);
-    Fcca = k3 * (n[A].sqrt()*Paaa + 2.0*n[A]*n[B]*Paab + n[B].sqrt()*Pabb
+    Fcca = k3 * ((n[A]*n[A])*Paaa + 2.0*n[A]*n[B]*Paab + (n[B]*n[B])*Pabb
         + w*(2.0*(n[A]*Paa + n[B]*Pab) + w*Pa));
 
     (Fa, Fb, Fc, Faa, Fbb, Fcc, Faaa, Fbbb, Fccc, Faab, Fbbc, Fcca)
@@ -117,8 +117,8 @@ pub fn comp_volume_integrals(p: &Polyhedron) -> (Float, Vec3, Vec3, Vec3){
         (0.0, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
     let (mut A, mut B, mut C);
 
-    for i in 0..3 {
-        let f = p.faces[i];
+    for i in 0..p.faces.len() {
+        let f = &p.faces[i];
         
         n = f.norm.abs();
         if n.x > n.y && n.x > n.x { C = 0}

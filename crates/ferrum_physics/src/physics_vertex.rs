@@ -1,10 +1,11 @@
 use ferrum_core::math::{Float, Vec3};
 
-#[derive(Copy, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct Face{
-    pub vert: [usize; 3],
+    pub num_verts: usize,
+    pub norm: Vec3,
     pub w: Float,
-    pub norm: Vec3
+    pub verts: Vec<usize>,
 }
 
 #[derive(Default)]
