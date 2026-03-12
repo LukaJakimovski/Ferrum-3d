@@ -408,7 +408,7 @@ impl State {
                     .inv_mass(0.5)
                     .mesh(mesh)
                     .index(i)
-                    .omega(math::Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()));
+                    .omega(math::Vec3::new(0.5f32, 0.5f32, 0.5f32));
                 physics.rigidbodies.add_body(body);
                 physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }

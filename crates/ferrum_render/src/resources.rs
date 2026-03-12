@@ -62,13 +62,28 @@ pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
     let mut p: Polyhedron = Default::default();
     p.vert = bytemuck::cast_slice(&m.positions).to_vec();
     let mut i = 0;
-    for c in 0..m.face_arities.len(){
+    let len;
+    if !m.face_arities.is_empty(){
+        len = m.face_arities.len();
+    } else {
+        len = p.vert.len() / 3;
+    }
+    for c in 0..len{
         let mut f: Face = Default::default();
-        f.num_verts = m.face_arities[c] as usize;
-        for _v in 0..m.face_arities[c]{
-            f.verts.push(m.indices[i] as usize);
-            i += 1;
+        if !m.face_arities.is_empty(){
+            f.num_verts = m.face_arities[c] as usize;
+            for _v in 0..m.face_arities[c]{
+                f.verts.push(m.indices[i] as usize);
+                i += 1;
+            }
+        } else{
+            f.num_verts = 3;
+            for _v in 0..3{
+                f.verts.push(m.indices[i] as usize);
+                i += 1;
+            }
         }
+
 
         let d1 = p.vert[f.verts[1]] - p.vert[f.verts[0]];
         let d2 = p.vert[f.verts[2]] - p.vert[f.verts[0]];
@@ -127,7 +142,8 @@ pub async fn load_model(
                         m.mesh.positions[i * 3 + 1] / 10.0,
                         m.mesh.positions[i * 3 + 2] / 10.0,
                     ],
-                    tex_coords: [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]],
+
+                    tex_coords: if (i * 2 + 1) < m.mesh.texcoords.len() { [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]]} else {[0.0, 0.0]},
                     normal: [
                         m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
