@@ -1,4 +1,4 @@
-use ferrum_core::math::{Float, Quat, Vec3};
+use ferrum_core::math::{Float, Mat3, Quat, Vec3};
 use crate::rigidbody::RigidBodySet;
 
 #[derive(Default)]
@@ -10,7 +10,7 @@ pub struct RigidBody {
     pub(crate) force: Vec3,    // hot - written every frame
     pub(crate) mesh: usize,
     pub(crate) inv_mass: Float,     // warm
-    pub(crate) inertia: Vec3,    // warm
+    pub(crate) inertia: Mat3,    // warm
     pub(crate) restitution: Float,     // cold - only on collision
     pub(crate) _is_sleeping: bool,    // cold
     pub(crate) index: usize,
@@ -27,7 +27,7 @@ impl RigidBody {
         body.orientation = Quat::IDENTITY;
         body.force = Vec3::ZERO;
         body.inv_mass = 0.0;
-        body.inertia = Vec3::ZERO;
+        body.inertia = Mat3::ZERO;
         body.restitution = 0.0;
         body._is_sleeping = false;
         body.mesh = 0;
@@ -68,7 +68,7 @@ impl RigidBody {
         self
     }
     #[allow(unused)]
-    pub fn inertia(mut self, inertia: Vec3) -> Self {
+    pub fn inertia(mut self, inertia: Mat3) -> Self {
         self.inertia = inertia;
         self
     }

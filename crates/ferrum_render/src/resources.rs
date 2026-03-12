@@ -37,7 +37,7 @@ pub async fn load_texture(
 }
 
 
-pub async fn get_vertices_and_normals(file_name: &str) -> Polyhedron {
+pub async fn load_polyhedron(file_name: &str) -> Polyhedron {
     let obj_text = load_string(file_name).await.unwrap();
     let obj_cursor = Cursor::new(obj_text);
     let mut obj_reader = BufReader::new(obj_cursor);

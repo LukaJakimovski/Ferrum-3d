@@ -23,7 +23,7 @@ use rand::RngExt;
 use ferrum_core::math;
 use ferrum_physics::mass_properties::comp_volume_integrals;
 use ferrum_physics::physics_vertex::{Polyhedron};
-use crate::resources::get_vertices_and_normals;
+use crate::resources::load_polyhedron;
 
 #[allow(unused)]
 const NUM_INSTANCES_PER_ROW: u32 = 12;
@@ -300,7 +300,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["blender_cube.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
+        let obj_names = vec!["monkey.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
 
         for name in &obj_names {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
@@ -395,7 +395,7 @@ impl State {
         };
         let mut polyhedrons: Vec<Polyhedron> = Default::default();
         for name in &obj_names {
-            polyhedrons.push(get_vertices_and_normals(name).await);
+            polyhedrons.push(load_polyhedron(name).await);
         }
 
 
@@ -410,6 +410,7 @@ impl State {
                     .index(i)
                     .omega(math::Vec3::new(3.0f32.sqrt(), 3.0f32.sqrt(), 3.0f32.sqrt()));
                 physics.rigidbodies.add_body(body);
+                physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }
         }
         physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
