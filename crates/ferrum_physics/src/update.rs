@@ -1,5 +1,6 @@
 use ferrum_core::math::{Float, Quat, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
+use ferrum_core::rk4::integrate_rk4;
 use crate::physics_vertex::{Polyhedron};
 use crate::rigidbody::RigidBodySet;
 
@@ -33,6 +34,8 @@ impl Physics{
             let (next_x, next_v) = ode45_step(0.0, self.rigidbodies.get_position(body_id), self.rigidbodies.get_velocity(body_id), dt, self.rigidbodies.get_inv_mass(body_id), &force);
             next_bodies.positions[body_id] = next_x;
             next_bodies.velocities[body_id] = next_v;
+
+            integrate_rk4(&mut next_bodies.orientations[body_id], &mut next_bodies.omega[body_id], next_bodies.inertia[body_id], next_bodies.inv_inertia[body_id], next_bodies.torques[body_id], dt);
             next_bodies.rotate(Quat::from_axis_angle(next_bodies.omega[body_id].normalize(), next_bodies.omega[body_id].length() * dt), body_id);
         }
         self.rigidbodies = next_bodies;

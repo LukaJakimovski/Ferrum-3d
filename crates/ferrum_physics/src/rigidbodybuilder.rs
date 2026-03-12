@@ -8,6 +8,7 @@ pub struct RigidBody {
     pub(crate) velocity: Vec3,    // hot - read every frame
     pub(crate) orientation: Quat,    // hot - read every frame
     pub(crate) force: Vec3,    // hot - written every frame
+    pub(crate) torque: Vec3,
     pub(crate) mesh: usize,
     pub(crate) inv_mass: Float,     // warm
     pub(crate) inertia: Mat3,    // warm
@@ -16,6 +17,7 @@ pub struct RigidBody {
     pub(crate) index: usize,
     pub(crate) omega: Vec3,
     pub(crate) mass: Float,
+    pub inv_inertia: Mat3
 }
 
 impl RigidBody {
@@ -28,6 +30,8 @@ impl RigidBody {
         body.force = Vec3::ZERO;
         body.inv_mass = 0.0;
         body.inertia = Mat3::ZERO;
+        body.inv_inertia = Mat3::ZERO;
+        body.torque = Vec3::ZERO;
         body.restitution = 0.0;
         body._is_sleeping = false;
         body.mesh = 0;
@@ -53,6 +57,11 @@ impl RigidBody {
     #[allow(unused)]
     pub fn force(mut self, force: Vec3) -> Self {
         self.force = force;
+        self
+    }
+    #[allow(unused)]
+    fn torque(mut self, torque: Vec3) -> Self {
+        self.torque = torque;
         self
     }
     #[allow(unused)]
@@ -104,6 +113,7 @@ impl RigidBody {
             .mesh(set.get_mesh(i))
             .index(set.get_index(i))
             .force(set.forces[i])
+            .torque(set.torques[i])
             .omega(set.omega[i])
             .orientation(set.orientations[i])
             .velocity(set.velocities[i])

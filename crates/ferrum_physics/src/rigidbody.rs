@@ -11,9 +11,11 @@ pub struct RigidBodySet {
     pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
     pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
     pub(crate) forces:       Vec<Vec3>,   // hot  - written every frame
+    pub(crate) torques:      Vec<Vec3>,
     pub(crate) inv_mass:     Vec<Float>,  // warm - read once every frame
     pub(crate) mass:         Vec<Float>,
     pub(crate) inertia:      Vec<Mat3>,   // warm - read once every frame
+    pub(crate) inv_inertia:  Vec<Mat3>,
     pub(crate) restitution:  Vec<Float>,  // cold - only on collision
     pub(crate) is_sleeping:  Vec<bool>,   // cold
     pub(crate) index:        Vec<usize>,
@@ -88,6 +90,7 @@ impl RigidBodySet {
         J[2][0] = J[0][2];
 
         self.inertia[body_id] = Mat3::from_cols_array_2d(&J);
+        self.inv_inertia[body_id] = self.inertia[body_id].inverse();
 
         println!("Inertia Tensor with Origin at Center of Mass: {}", self.inertia[body_id]);
     }
@@ -97,12 +100,14 @@ impl RigidBodySet {
             positions:      vec![Vec3::ZERO; num_bodies],
             velocities:     vec![Vec3::ZERO; num_bodies],
             orientations:   vec![Quat::IDENTITY; num_bodies],
-            forces:        vec![Vec3::ZERO; num_bodies],
+            forces:         vec![Vec3::ZERO; num_bodies],
+            torques:        vec![Vec3::ZERO; num_bodies],
             inv_mass:       vec![0.0; num_bodies],
             mass:           vec![0.0; num_bodies],
-            inertia:       vec![Mat3::ZERO; num_bodies],
-            restitution:   vec![0.0; num_bodies],
-            is_sleeping:   vec![false; num_bodies],
+            inv_inertia:    vec![Mat3::ZERO; num_bodies],
+            inertia:        vec![Mat3::ZERO; num_bodies],
+            restitution:    vec![0.0; num_bodies],
+            is_sleeping:    vec![false; num_bodies],
             mesh:           vec![0; num_bodies],
             index:          vec![0; num_bodies],
             omega:          vec![Vec3::ZERO; num_bodies],
@@ -117,8 +122,10 @@ impl RigidBodySet {
         self.velocities.push(Vec3::ZERO);
         self.orientations.push(Quat::IDENTITY);
         self.forces.push(Vec3::ZERO);
+        self.torques.push(Vec3::ZERO);
         self.inv_mass.push(0.0);
         self.inertia.push(Mat3::ZERO);
+        self.inv_inertia.push(Mat3::ZERO);
         self.restitution.push(0.0);
         self.is_sleeping.push(false);
         self.mesh.push(0);
@@ -131,9 +138,11 @@ impl RigidBodySet {
         self.orientations.push(builder.orientation);
         self.velocities.push(builder.velocity);
         self.forces.push(builder.force);
+        self.torques.push(builder.torque);
         self.inv_mass.push(builder.inv_mass);
         self.mass.push(builder.mass);
         self.inertia.push(builder.inertia);
+        self.inv_inertia.push(builder.inv_inertia);
         self.restitution.push(builder.restitution);
         self.is_sleeping.push(false);
         self.mesh.push(builder.mesh);
