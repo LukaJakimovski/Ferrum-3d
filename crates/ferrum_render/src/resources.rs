@@ -74,7 +74,7 @@ pub fn load_polyhedron(file_name: &str) -> Polyhedron {
                 .map(|group| {
                     group.split('/')
                         .map(|s| s.parse::<usize>()
-                            .expect("Failed to parse usize"))
+                            .unwrap_or(0))
                         .collect()
                 })
                 .collect();
