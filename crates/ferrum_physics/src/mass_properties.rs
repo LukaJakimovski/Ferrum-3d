@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use ferrum_core::math::{Float, Vec3};
 use crate::physics_vertex::{Face, Polyhedron};
 
@@ -23,7 +25,7 @@ mut Pabb, mut Pbbb):
         a0 = v[f.verts[i]][A];
         b0 = v[f.verts[i]][B];
         a1 = v[f.verts[(i + 1) % f.num_verts]][A];
-        b1 = v[f.verts[(i + 2) % f.num_verts]][B];
+        b1 = v[f.verts[(i + 1) % f.num_verts]][B];
         da = a1 - a0;
         db = b1 - b0;
         a0_2 = a0 * a0; a0_3 = a0_2 * a0; a0_4 = a0_3 * a0;
@@ -76,7 +78,7 @@ fn comp_face_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize, C: usize) ->
     let (Fa, Fb, Fc, Faa, Fbb, Fcc, Faaa, Fbbb, Fccc, Faab, Fbbc, Fcca):
         (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float, Float);
 
-    let (P1, Pa, Pb, Paa, Pab, Pbb, Paaa, Paab, Pabb, Pbbb) 
+    let (P1, Pa, Pb, Paa, Pab, Pbb, Paaa, Paab, Pabb, Pbbb)
         = comp_projection_integrals(&f, v, A, B);
     w = f.w;
     n = f.norm;
@@ -119,9 +121,9 @@ pub fn comp_volume_integrals(p: &Polyhedron) -> (Float, Vec3, Vec3, Vec3){
 
     for i in 0..p.faces.len() {
         let f = &p.faces[i];
-        
+
         n = f.norm.abs();
-        if n.x > n.y && n.x > n.x { C = 0}
+        if n.x > n.y && n.x > n.z { C = 0}
         else if n.y > n.z { C = 1}
         else { C = 2}
         A = (C + 1) % 3;
@@ -130,9 +132,7 @@ pub fn comp_volume_integrals(p: &Polyhedron) -> (Float, Vec3, Vec3, Vec3){
         let (Fa, Fb, Fc, Faa, Fbb, Fcc, Faaa, Fbbb, Fccc, Faab, Fbbc, Fcca) =
             comp_face_integrals(&f, &p.vert, A, B, C);
 
-        if A == 0 { T0 += f.norm.x * Fa}
-        if B == 0 { T0 += f.norm.x * Fb}
-        if C == 0 { T0 += f.norm.y * Fc}
+        T0 += f.norm[0] * if A == 0 { Fa } else if B == 0 { Fb } else { Fc };
 
         T1[A] += f.norm[A] * Faa;
         T1[B] += f.norm[B] * Fbb;

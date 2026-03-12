@@ -1,6 +1,6 @@
 use ferrum_core::math::{Float, Quat, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
-use crate::physics_vertex::{Face, Polyhedron};
+use crate::physics_vertex::{Polyhedron};
 use crate::rigidbody::RigidBodySet;
 
 pub struct Physics {

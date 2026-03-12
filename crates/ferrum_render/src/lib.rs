@@ -22,7 +22,7 @@ use ferrum_physics::update::Physics;
 use rand::RngExt;
 use ferrum_core::math;
 use ferrum_physics::mass_properties::comp_volume_integrals;
-use ferrum_physics::physics_vertex::{Face, Polyhedron};
+use ferrum_physics::physics_vertex::{Polyhedron};
 use crate::resources::get_vertices_and_normals;
 
 #[allow(unused)]
