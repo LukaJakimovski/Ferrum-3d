@@ -87,75 +87,11 @@ pub fn load_polyhedron(file_name: &str) -> Polyhedron {
             let n = d1.cross(d2);
             f.norm = n / n.length();
 
-            f.w = - f.norm.x * p.vert[f.verts[0]].x
-                - f.norm.y * p.vert[f.verts[0]].y
-                - f.norm.z * p.vert[f.verts[0]].z;
+            f.w = -f.norm.x * p.vert[f.verts[0]].x
+                  -f.norm.y * p.vert[f.verts[0]].y
+                  -f.norm.z * p.vert[f.verts[0]].z;
             p.faces.push(f);
         }
-    }
-    p
-}
-
-
-
-pub async fn _load_polyhedron_tobj(file_name: &str) -> Polyhedron {
-    let obj_text = load_string(file_name).await.unwrap();
-    let obj_cursor = Cursor::new(obj_text);
-    let mut obj_reader = BufReader::new(obj_cursor);
-
-    let (models, _obj_materials) = tobj::load_obj_buf_async(
-        &mut obj_reader,
-        &tobj::LoadOptions {
-            triangulate: true,
-            single_index: false,
-            reorder_data: false,
-            ..Default::default()
-        },
-        |p| async move {
-            let mat_text = load_string(&p).await.unwrap();
-            tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
-        },
-    )
-        .await.unwrap();
-
-    let m = &models[0].mesh;
-
-    let mut p: Polyhedron = Default::default();
-    let verts: Vec<glam::Vec3> = bytemuck::cast_slice(&m.positions).to_vec();
-    for vert in verts{
-        p.vert.push(math::Vec3::new(vert.x as f64, vert.y as f64, vert.z as f64));
-    }
-    let mut i = 0;
-    let len;
-    if !m.face_arities.is_empty(){
-        len = m.face_arities.len();
-    } else {
-        len = p.vert.len() / 3;
-    }
-    for c in 0..len{
-        let mut f: Face = Default::default();
-        if !m.face_arities.is_empty(){
-            for _v in 0..m.face_arities[c]{
-                f.verts.push(m.indices[i] as usize);
-                i += 1;
-            }
-        } else{
-            for _v in 0..3{
-                f.verts.push(m.indices[i] as usize);
-                i += 1;
-            }
-        }
-
-
-        let d1 = p.vert[f.verts[1]] - p.vert[f.verts[0]];
-        let d2 = p.vert[f.verts[2]] - p.vert[f.verts[0]];
-        let n = d1.cross(d2);
-        f.norm = n / n.length();
-
-        f.w = - f.norm.x * p.vert[f.verts[0]].x
-              - f.norm.y * p.vert[f.verts[0]].y
-              - f.norm.z * p.vert[f.verts[0]].z;
-        p.faces.push(f);
     }
     p
 }
