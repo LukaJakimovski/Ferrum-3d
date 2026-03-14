@@ -1,3 +1,4 @@
+use egui_wgpu::wgpu;
 use glam::{Mat3, Mat4, Quat, Vec3};
 use ferrum_physics::rigidbody::RigidBody;
 use crate::{model, State};

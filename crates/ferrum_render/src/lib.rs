@@ -1,4 +1,5 @@
-
+use egui_winit::winit;
+use egui_wgpu::wgpu;
 use std::sync::Arc;
 use std::{f32::consts::PI, iter};
 use wgpu::util::DeviceExt;
@@ -10,6 +11,7 @@ mod resources;
 mod texture;
 mod instance;
 mod input;
+mod gui;
 
 use model::{DrawLight, DrawModel, Vertex};
 use camera::{CameraUniform};
@@ -23,6 +25,7 @@ use rand::RngExt;
 use ferrum_core::math;
 use ferrum_physics::mass_properties::comp_volume_integrals;
 use ferrum_physics::physics_vertex::{Polyhedron};
+use crate::gui::egui_tools::EguiRenderer;
 use crate::resources::load_polyhedron;
 
 #[allow(unused)]
@@ -64,6 +67,8 @@ pub struct State {
     #[allow(dead_code)]
     pub mouse_pressed: bool,
     physics: Physics,
+
+    pub egui_renderer: EguiRenderer,
 }
 
 fn create_render_pipeline(
@@ -124,7 +129,7 @@ fn create_render_pipeline(
         },
         // If the pipeline will be used with a multiview render pass, this
         // tells wgpu to render to just specific texture layers.
-        multiview_mask: None,
+        multiview: None,
         cache: None,
     })
 }
@@ -261,8 +266,8 @@ impl State {
         }
         */
         let mut instances = vec![vec![]];
-        instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
-        instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
+        //instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
+        //instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
         instances[0].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
 
         let mut instance_buffers = vec![];
@@ -300,7 +305,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["monkey.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
+        let obj_names = vec!["corkscrew.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
 
         for name in &obj_names {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
@@ -309,7 +314,7 @@ impl State {
 
 
         let light_uniform = LightUniform {
-            position: [2.0, 2.0, 2.0],
+            position: [10.0, 10.0, 10.0],
             _padding: 0,
             color: [1.0, 1.0, 1.0],
             _padding2: 0,
@@ -356,7 +361,7 @@ impl State {
                     &camera_bind_group_layout,
                     &light_bind_group_layout,
                 ],
-                immediate_size: 0,
+                push_constant_ranges: &[],
             });
 
         let render_pipeline = {
@@ -378,7 +383,7 @@ impl State {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
                 bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
-                immediate_size: 0,
+                push_constant_ranges: &[],
             });
             let shader = wgpu::ShaderModuleDescriptor {
                 label: Some("Light Shader"),
@@ -393,13 +398,17 @@ impl State {
                 shader,
             )
         };
+
+        let egui_renderer = EguiRenderer::new(&device, config.format, None, 1, &window);
+
+
         let mut polyhedrons: Vec<Polyhedron> = Default::default();
         for name in &obj_names {
             polyhedrons.push(load_polyhedron(name));
         }
 
 
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, timer: Default::default() };
         for (mesh, instance) in instances.iter().enumerate() {
             for i in 0..instance.len(){
                 let body = RigidBody::builder()
@@ -408,14 +417,14 @@ impl State {
                     .inv_mass(0.5)
                     .mesh(mesh)
                     .index(i)
-                    .omega(math::Vec3::new(0.5, 0.5, 0.5));
+                    .omega(math::Vec3::new(10.0, 0.0, 0.0));
                 physics.rigidbodies.add_body(body);
                 physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }
         }
-        physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
+        //physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        //physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        //physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
         comp_volume_integrals(&physics.polyhedrons[0]);
 
 
@@ -437,6 +446,7 @@ impl State {
             instance_buffers,
             depth_texture,
             is_surface_configured: false,
+            egui_renderer,
             light_uniform,
             light_buffer,
             light_bind_group,
@@ -483,7 +493,7 @@ impl State {
             bytemuck::cast_slice(&[self.light_uniform]),
         );
 
-        self.physics.physics_update(dt as Float);
+        self.physics.physics_update(dt * 1.0 as Float);
         self.update_instances();
 
         // Rebuild the raw instance data and write to the buffer
@@ -544,7 +554,6 @@ impl State {
                 }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
-                multiview_mask: None,
             });
 
             render_pass.set_vertex_buffer(1, self.instance_buffers[0].slice(..));

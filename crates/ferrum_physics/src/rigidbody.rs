@@ -56,11 +56,6 @@ impl RigidBodySet {
         let (T0, T1, T2, TP) = comp_volume_integrals(polyhedron);
         let r = T1 / T0;
         let density = self.mass[body_id] / T0;
-        println!("T0: {}\n", T0);
-        println!("T1: {}", T1);
-        println!("T2: {}", T2);
-        println!("TP: {}", TP);
-        println!("\nCenter of Mass: {}", r);
 
         #[allow(non_snake_case)]
         let mut J = self.inertia[body_id].to_cols_array_2d();
@@ -91,8 +86,6 @@ impl RigidBodySet {
 
         self.inertia[body_id] = Mat3::from_cols_array_2d(&J);
         self.inv_inertia[body_id] = self.inertia[body_id].inverse();
-
-        println!("Inertia Tensor with Origin at Center of Mass: {}", self.inertia[body_id]);
     }
 
     pub fn new(num_bodies: usize) -> RigidBodySet {

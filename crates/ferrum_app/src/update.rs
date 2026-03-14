@@ -1,3 +1,4 @@
+use egui_wgpu::wgpu;
 use ferrum_core::time::now;
 use crate::app::App;
 

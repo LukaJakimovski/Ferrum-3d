@@ -1,5 +1,5 @@
 use std::ops::Range;
-
+use egui_wgpu::wgpu;
 use crate::texture;
 
 pub trait Vertex {
