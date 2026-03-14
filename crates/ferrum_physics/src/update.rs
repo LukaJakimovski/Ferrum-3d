@@ -1,7 +1,6 @@
 use ferrum_core::math::{Float, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
 use ferrum_core::rk4::integrate_rk4;
-use ferrum_core::timing::Timing;
 use crate::energy::Energy;
 use crate::physics_vertex::{Polyhedron};
 use crate::rigidbody::RigidBodySet;
@@ -9,12 +8,14 @@ use crate::rigidbody::RigidBodySet;
 pub struct Physics {
     pub rigidbodies: RigidBodySet,
     pub polyhedrons: Vec<Polyhedron>,
-    pub timer: Timing,
     pub energy: Energy
 }
 
 impl Physics{
-    pub fn physics_update(&mut self, dt: Float) {
+    pub fn physics_update(&mut self, dt: &mut Float) {
+
+
+        let dt = *dt;
         // Mutably access an instance and change its position
         let snapshot = self.rigidbodies.clone();
         let mut next_bodies: RigidBodySet = self.rigidbodies.clone();

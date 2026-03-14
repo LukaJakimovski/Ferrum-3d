@@ -16,13 +16,14 @@ mod gui;
 use model::{DrawLight, DrawModel, Vertex};
 use camera::{CameraUniform};
 use glam::{Vec3, Quat};
-use ferrum_core::math::{Float, ToFloat};
+use ferrum_core::math::ToFloat;
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody::{RigidBody, RigidBodySet};
 use ferrum_physics::update::Physics;
 #[allow(unused)]
 use rand::RngExt;
 use ferrum_core::math;
+use ferrum_core::timing::Timing;
 use ferrum_physics::physics_vertex::{Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
 use crate::resources::load_polyhedron;
@@ -67,6 +68,7 @@ pub struct State {
     physics: Physics,
     pub egui_renderer: EguiRenderer,
     pub menus: [bool; 16],
+    pub timer: Timing,
 }
 
 fn create_render_pipeline(
@@ -363,7 +365,7 @@ impl State {
         }
 
 
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, timer: Default::default(), energy: Default::default() };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default() };
         for (mesh, instance) in instances.iter().enumerate() {
             for i in 0..instance.len(){
                 let body = RigidBody::builder()
@@ -409,6 +411,7 @@ impl State {
             mouse_pressed: false,
             physics,
             menus: [false; 16],
+            timer: Default::default(),
         })
     }
 
@@ -425,7 +428,7 @@ impl State {
         }
     }
 
-    pub fn update(&mut self, dt: f64) {
+    pub fn update(&mut self, mut dt: f64) {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
@@ -448,7 +451,12 @@ impl State {
             bytemuck::cast_slice(&[self.light_uniform]),
         );
 
-        self.physics.physics_update(dt * 1.0 as Float);
+
+        self.timer.runtime += dt;
+        self.timer.fps = 1.0 / dt;
+        self.timer.dt = dt;
+        self.physics.physics_update(&mut dt);
+        self.timer.sim_time += dt;
         self.update_instances();
 
         // Rebuild the raw instance data and write to the buffer
@@ -465,7 +473,7 @@ impl State {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
-        
+
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -529,7 +537,7 @@ impl State {
             }
         }
         self.create_gui(&mut encoder, &view);
-        
+
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
 

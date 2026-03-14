@@ -6,7 +6,7 @@ use crate::State;
 #[derive(Debug, Copy, Clone)]
 pub enum Menu {
     Config = 0,
-    FPS = 1,
+    Timer = 1,
     Energy = 2,
     Camera = 3,
     Spawner = 4,
@@ -36,10 +36,15 @@ impl State {
             .show(&renderer, |ui| {
                 ui.heading("Menu Selector");
                 ui.checkbox(&mut menus[Menu::Energy as usize], "Energy Info", );
+                ui.checkbox(&mut menus[Menu::Timer as usize], "Timing Info", );
             });
+        let menus = &self.menus;
 
         if menus[Menu::Energy as usize] {
             self.energy_menu();
+        }
+        if menus[Menu::Timer as usize] {
+            self.timing_menu();
         }
 
         self.egui_renderer.end_frame_and_draw(
@@ -69,6 +74,27 @@ impl State {
                 ui.label(format!("Potential Energy: {:.3} Joules", energy.gravitational_potential_energy));
                 ui.label(format!("Total Energy: {:.3} Joules", energy.total_energy));
                 ui.label(format!("Delta Energy: {:.3} Joules", energy.total_energy - energy.start_energy));
+            });
+    }
+
+    fn timing_menu(&self) {
+        let renderer = self.egui_renderer.context();
+        let timer = &self.timer;
+        egui::Window::new("Timer")
+            .resizable(false)
+            .vscroll(true)
+            .default_open(true)
+            .max_height(200.0)
+            .max_width(300.0)
+            .title_bar(false)
+            .show(renderer, |ui| {
+                ui.heading("Timer");
+                ui.label(format!("Runtime: {:.3}s", timer.runtime));
+                ui.label(format!("Sim Time: {:.3}s", timer.sim_time));
+                ui.label(format!("Ratio: {:.2}x", timer.runtime / timer.sim_time));
+                ui.label(format!("Delta Time: {:.3}ms", timer.dt * 1000.0));
+                ui.label(format!("Render FPS: {:.3}fps", timer.fps));
+
             });
     }
 }
