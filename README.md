@@ -9,6 +9,11 @@ A 3d Physics Engine written in Rust
 - Left Click Drag -> Move Camera
 
 # todo!
-- GUI
 - Way to load a configuration
-- Gravity
+- Have a way to select a shape
+- Show properties for selected shape
+- Show Time properties
+- Show Energy information
+- Way to draw Vectors
+- Way to remove an object
+- Render objects 

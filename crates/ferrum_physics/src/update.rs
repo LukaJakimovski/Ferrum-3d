@@ -1,12 +1,16 @@
-use ferrum_core::math::{Float, Quat, Vec3};
+use ferrum_core::math::{Float, Vec3};
 use ferrum_core::dormand_prince::ode45_step;
 use ferrum_core::rk4::integrate_rk4;
+use ferrum_core::timing::Timing;
+use crate::energy::Energy;
 use crate::physics_vertex::{Polyhedron};
 use crate::rigidbody::RigidBodySet;
 
 pub struct Physics {
     pub rigidbodies: RigidBodySet,
-    pub polyhedrons: Vec<Polyhedron>
+    pub polyhedrons: Vec<Polyhedron>,
+    pub timer: Timing,
+    pub energy: Energy
 }
 
 impl Physics{
@@ -36,10 +40,8 @@ impl Physics{
             next_bodies.velocities[body_id] = next_v;
 
             integrate_rk4(&mut next_bodies.orientations[body_id], &mut next_bodies.omega[body_id], next_bodies.inertia[body_id], next_bodies.inv_inertia[body_id], next_bodies.torques[body_id], dt);
-            next_bodies.rotate(Quat::from_axis_angle(next_bodies.omega[body_id].normalize(), next_bodies.omega[body_id].length() * dt), body_id);
-            let energy = 0.5 * next_bodies.omega[body_id].dot(next_bodies.inertia[body_id] * next_bodies.omega[body_id]);
-            println!("energy: {:.4}J", energy);
         }
         self.rigidbodies = next_bodies;
+        self.energy.update_energy(&self.rigidbodies);
     }
 }

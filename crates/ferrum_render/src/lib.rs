@@ -23,7 +23,6 @@ use ferrum_physics::update::Physics;
 #[allow(unused)]
 use rand::RngExt;
 use ferrum_core::math;
-use ferrum_physics::mass_properties::comp_volume_integrals;
 use ferrum_physics::physics_vertex::{Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
 use crate::resources::load_polyhedron;
@@ -35,7 +34,6 @@ const NUM_INSTANCES_PER_ROW: u32 = 12;
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct LightUniform {
     position: [f32; 3],
-    // Due to uniforms requiring 16 byte (4 float) spacing, we need to use a padding field here
     _padding: u32,
     color: [f32; 3],
     _padding2: u32,
@@ -67,8 +65,8 @@ pub struct State {
     #[allow(dead_code)]
     pub mouse_pressed: bool,
     physics: Physics,
-
     pub egui_renderer: EguiRenderer,
+    pub menus: [bool; 16],
 }
 
 fn create_render_pipeline(
@@ -108,11 +106,8 @@ fn create_render_pipeline(
             strip_index_format: None,
             front_face: wgpu::FrontFace::Ccw,
             cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
             polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
             unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
             conservative: false,
         },
         depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
@@ -127,8 +122,6 @@ fn create_render_pipeline(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        // If the pipeline will be used with a multiview render pass, this
-        // tells wgpu to render to just specific texture layers.
         multiview: None,
         cache: None,
     })
@@ -138,8 +131,6 @@ impl State {
     pub async fn new(window: Arc<Window>) -> anyhow::Result<State> {
         let size = window.inner_size();
 
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
@@ -160,35 +151,34 @@ impl State {
                 label: None,
                 required_features: wgpu::Features::empty(),
                 experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
-                required_limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
+                required_limits: wgpu::Limits::default(),
                 memory_hints: Default::default(),
-                trace: wgpu::Trace::Off, // Trace path
+                trace: wgpu::Trace::Off,
             })
             .await
             .unwrap();
 
         let surface_caps = surface.get_capabilities(&adapter);
-        // Shader code in this tutorial assumes an Srgb surface texture. Using a different
-        // one will result all the colors comming out darker. If you want to support non
-        // Srgb surfaces, you'll need to account for that when drawing to the frame.
         let surface_format = surface_caps
             .formats
             .iter()
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
+
+        #[cfg(target_os = "windows")]
+        let vsync_mode = 2;
+        #[cfg(all(target_os = "windows", target_arch = "x86_64", target_env = "gnu"))]
+        let vsync_mode = 1;
+        #[cfg(not(target_os = "windows"))]
+        let vsync_mode = 0;
+
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: surface_caps.present_modes[0],
+            present_mode: surface_caps.present_modes[vsync_mode],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
@@ -219,7 +209,7 @@ impl State {
 
         let camera = camera::Camera::new((0.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
         let projection =
-            camera::Projection::new(config.width, config.height, 45.0f32.to_radians(), 0.1, 100.0);
+            camera::Projection::new(config.width, config.height, 45.0f32.to_radians(), 0.1, 10000.0);
         let camera_controller = camera::CameraController::new(4.0, 1.0);
 
         let mut camera_uniform = CameraUniform::new();
@@ -231,40 +221,6 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        /*
-        const SPACE_BETWEEN: f32 = 3.0;
-        let mut instances = vec![vec![]];
-        instances.resize(3, vec![]);
-        for x in 0..NUM_INSTANCES_PER_ROW {
-            for z in 0..NUM_INSTANCES_PER_ROW {
-                let x = SPACE_BETWEEN * (x as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-                let z = SPACE_BETWEEN * (z as f32 - NUM_INSTANCES_PER_ROW as f32 / 2.0);
-
-                let position = Vec3 { x, y: 0.0, z };
-
-                let rotation = if position == Vec3::ZERO {
-                    Quat::from_axis_angle(
-                        Vec3::Z,
-                        0.0f32.to_radians(),
-                    )
-                } else {
-                    Quat::from_axis_angle(position.normalize(), 45.0f32.to_radians())
-                };
-
-                let instance = Instance { position, rotation };
-
-                let mut rng = rand::rng();
-                let torus = rng.random_range(0..3);
-                if torus == 0 {
-                    instances[0].push(instance);
-                } else if torus == 1 {
-                    instances[1].push(instance);
-                } else if torus == 2 {
-                    instances[2].push(instance);
-                }
-            }
-        }
-        */
         let mut instances = vec![vec![]];
         //instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
         //instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
@@ -305,8 +261,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["corkscrew.obj"];//"blender_cube.obj", "torus.obj", "monkey.obj"];
-
+        let obj_names = vec!["corkscrew.obj"];
         for name in &obj_names {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
                 .await?);
@@ -399,7 +354,7 @@ impl State {
             )
         };
 
-        let egui_renderer = EguiRenderer::new(&device, config.format, None, 1, &window);
+        let egui_renderer = EguiRenderer::new(&device, config.format, &window);
 
 
         let mut polyhedrons: Vec<Polyhedron> = Default::default();
@@ -408,7 +363,7 @@ impl State {
         }
 
 
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, timer: Default::default() };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, timer: Default::default(), energy: Default::default() };
         for (mesh, instance) in instances.iter().enumerate() {
             for i in 0..instance.len(){
                 let body = RigidBody::builder()
@@ -422,12 +377,11 @@ impl State {
                 physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }
         }
+        physics.energy.update_energy(&physics.rigidbodies);
+        physics.energy.start_energy = physics.energy.total_energy;
         //physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         //physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
         //physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
-        comp_volume_integrals(&physics.polyhedrons[0]);
-
-
         Ok(Self {
             window,
             surface,
@@ -454,6 +408,7 @@ impl State {
             #[allow(dead_code)]
             mouse_pressed: false,
             physics,
+            menus: [false; 16],
         })
     }
 
@@ -510,8 +465,7 @@ impl State {
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         self.window.request_redraw();
-
-        // We can't render unless the surface is configured
+        
         if !self.is_surface_configured {
             return Ok(());
         }
@@ -574,6 +528,8 @@ impl State {
                 );
             }
         }
+        self.create_gui(&mut encoder, &view);
+        
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
 

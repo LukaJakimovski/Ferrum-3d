@@ -46,6 +46,11 @@ impl ApplicationHandler<State> for App {
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        let state = self.state.as_mut().unwrap();
+            state
+            .egui_renderer
+            .handle_input(state.window.as_ref(), &event);
+
         let state = match &mut self.state {
             Some(canvas) => canvas,
             None => return,

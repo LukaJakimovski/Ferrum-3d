@@ -5,9 +5,9 @@ pub use crate::rigidbodybuilder::RigidBody;
 
 #[derive(Clone)]
 pub struct RigidBodySet {
-    pub(crate) positions:    Vec<Vec3>,   // hot  - read every frame
+    pub positions:    Vec<Vec3>,   // hot  - read every frame
     pub velocities:          Vec<Vec3>,   // hot  - read every frame
-    pub(crate) omega:        Vec<Vec3>,
+    pub omega:        Vec<Vec3>,
     pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
     pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
     pub(crate) forces:       Vec<Vec3>,   // hot  - written every frame
