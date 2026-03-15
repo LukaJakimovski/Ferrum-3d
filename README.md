@@ -10,10 +10,6 @@ A 3d Physics Engine written in Rust
 
 # todo!
 - Way to load a configuration
-- Have a way to select a shape
-- Show properties for selected shape
-- Show Time properties
-- Show Energy information
 - Way to draw Vectors
 - Way to remove an object
-- Render objects 
+- Have objects with a given color
