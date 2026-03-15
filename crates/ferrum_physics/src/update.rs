@@ -1,6 +1,6 @@
 use ferrum_core::math::{Float, Vec3};
-use ferrum_core::dormand_prince::ode45_step;
-use ferrum_core::rk4::integrate_rk4;
+use ferrum_core::integrators::dormand_prince::ode45_step;
+use ferrum_core::integrators::rk4::integrate_rk4;
 use crate::energy::Energy;
 use crate::physics_vertex::{Polyhedron};
 use crate::rigidbody::RigidBodySet;
