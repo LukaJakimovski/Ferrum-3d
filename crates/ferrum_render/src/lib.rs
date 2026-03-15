@@ -31,6 +31,19 @@ use crate::resources::load_polyhedron;
 #[allow(unused)]
 const NUM_INSTANCES_PER_ROW: u32 = 12;
 
+pub enum Mesh {
+    Cube = 0,
+    Torus = 1,
+    Monkey = 2,
+    Rectangle = 3,
+    Sphere = 4,
+    Bunny = 5,
+    Corkscrew = 6,
+    Cylinder = 7,
+    Icosahedron = 8,
+    BunnyLowPoly = 9,
+}
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct LightUniform {
@@ -223,22 +236,6 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let mut instances = vec![vec![]];
-        //instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
-        //instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
-        instances[0].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
-
-        let mut instance_buffers = vec![];
-        for instance in &instances {
-            let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            instance_buffers.push(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Buffer"),
-                contents: bytemuck::cast_slice(&instance_data),
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            }));
-        }
-
-
         let camera_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -263,12 +260,26 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["corkscrew.obj"];
+        let obj_names = vec!["cube.obj", "torus.obj", "monkey.obj", "rectangle.obj", "sphere.obj", "bunny.obj", "corkscrew.obj", "cylinder.obj", "icosa.obj", "bunny_low_poly.obj", "arrow.obj"];
         for name in &obj_names {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
                 .await?);
         }
 
+        let mut instances = vec![vec![]; obj_names.len()];
+        //instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
+        //instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
+        instances[Mesh::Corkscrew as usize].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
+
+        let mut instance_buffers = vec![];
+        for instance in &instances {
+            let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
+            instance_buffers.push(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_data),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            }));
+        }
 
         let light_uniform = LightUniform {
             position: [10.0, 10.0, 10.0],
@@ -517,23 +528,32 @@ impl State {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
+            let mut index = 0;
+            for i in 0..self.instances.len() {
+                if self.instances[i].len() != 0{
+                    index = i;
+                    break
+                }
+            }
 
-            render_pass.set_vertex_buffer(1, self.instance_buffers[0].slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffers[index].slice(..));
             render_pass.set_pipeline(&self.light_render_pipeline);
             render_pass.draw_light_model(
-                &self.obj_models[0],
+                &self.obj_models[index],
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
             for (mesh, instance_buffer) in self.instance_buffers.iter().enumerate() {
-                render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.draw_model_instanced(
-                    &self.obj_models[mesh],
-                    0..self.instances[mesh].len() as u32,
-                    &self.camera_bind_group,
-                    &self.light_bind_group,
-                );
+                if self.instances[mesh].len() != 0 {
+                    render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                    render_pass.set_pipeline(&self.render_pipeline);
+                    render_pass.draw_model_instanced(
+                        &self.obj_models[mesh],
+                        0..self.instances[mesh].len() as u32,
+                        &self.camera_bind_group,
+                        &self.light_bind_group,
+                    );
+                }
             }
         }
         self.create_gui(&mut encoder, &view);
