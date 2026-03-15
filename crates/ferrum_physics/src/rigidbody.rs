@@ -46,10 +46,16 @@ impl RigidBodySet {
         self.orientations[body_id]
     }
     pub fn get_inv_mass(&self, body_id: usize) -> Float { self.inv_mass[body_id] }
-
     pub fn get_mesh(&self, body_id: usize) -> usize { self.mesh[body_id] }
-
+    pub fn get_omega(&self, body_id: usize) -> Vec3 { self.omega[body_id] }
+    pub fn get_forces(&self, body_id: usize) -> Vec3 { self.forces[body_id] }
+    pub fn get_torques(&self, body_id: usize) -> Vec3 { self.torques[body_id] }
+    pub fn get_mass(&self, body_id: usize) -> Float { self.mass[body_id] }
+    pub fn get_inertia(&self, body_id: usize) -> Mat3 { self.inertia[body_id] }
+    pub fn get_inv_inertia(&self, body_id: usize) -> Mat3 { self.inv_inertia[body_id] }
+    pub fn get_restitution(&self, body_id: usize) -> Float { self.restitution[body_id] }
     pub fn get_index(&self, body_id: usize) -> usize { self.index[body_id] }
+    
 
     pub fn comp_inertia_tensor(&mut self, body_id: usize, polyhedron: &Polyhedron){
         #[allow(non_snake_case)]
