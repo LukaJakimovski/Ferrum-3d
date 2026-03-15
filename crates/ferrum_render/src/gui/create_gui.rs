@@ -30,7 +30,7 @@ impl State {
                 ui.heading("Menu Selector");
                 ui.checkbox(&mut menus[Menu::Energy as usize], "Energy Info", );
                 ui.checkbox(&mut menus[Menu::Timer as usize], "Timing Info", );
-                ui.checkbox(&mut menus[Menu::Properties as usize], "Timing Info", );
+                ui.checkbox(&mut menus[Menu::Properties as usize], "Properties", );
             });
         let menus = &self.menus;
 
@@ -44,6 +44,9 @@ impl State {
             self.properties_menu();
         }
 
+        if !self.mouse_pressed {
+            self.is_pointer_used = self.egui_renderer.context().is_pointer_over_area();
+        }
         self.egui_renderer.end_frame_and_draw(
             &self.device,
             &self.queue,
@@ -95,10 +98,10 @@ impl State {
             });
     }
 
-    fn properties_menu(&self){
+    fn properties_menu(&mut self){
         let renderer = self.egui_renderer.context();
         let rigidbodies = &self.physics.rigidbodies;
-        let mut i = 0;
+        let i = &mut self.selected_index;
         egui::Window::new("Timer")
             .resizable(false)
             .vscroll(true)
@@ -110,22 +113,23 @@ impl State {
                 ui.heading("Properties");
                 ui.columns(2, |ui| {
                     ui[0].label("Index");
-                    ui[1].add(egui::DragValue::new(&mut i, ).speed(1), );
-                    if i > rigidbodies.len() - 1 {
-                        i = rigidbodies.len() - 1;
+                    ui[1].add(egui::DragValue::new(i).speed(1));
+                    if *i > (rigidbodies.len() - 1) {
+                        *i = rigidbodies.len() - 1;
                     }
                 });
+                let i = *i;
                 ui.label("Position");
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}", rigidbodies.positions[i].x));
-                    ui[1].label(format!("{:.3}", rigidbodies.positions[i].y));
-                    ui[2].label(format!("{:.3}", rigidbodies.positions[i].z));
+                    ui[0].label(format!("{:.3}m", rigidbodies.positions[i].x));
+                    ui[1].label(format!("{:.3}m", rigidbodies.positions[i].y));
+                    ui[2].label(format!("{:.3}m", rigidbodies.positions[i].z));
                 });
                 ui.label(format!("Velocity {}m/s", rigidbodies.velocities[i].length()));
                 ui.columns(3, |ui| {
                     ui[0].label(format!("{:.3}m/s", rigidbodies.velocities[i].x));
                     ui[1].label(format!("{:.3}m/s", rigidbodies.velocities[i].y));
-                    ui[2].label(format!("{:.3}", rigidbodies.velocities[i].z));
+                    ui[2].label(format!("{:.3}m/s", rigidbodies.velocities[i].z));
                 });
                 ui.label(format!("Force {}N", rigidbodies.get_forces(i).length()));
                 ui.columns(3, |ui| {
@@ -134,7 +138,7 @@ impl State {
                     ui[2].label(format!("{:.3}N", rigidbodies.get_forces(i).z));
                 });
                 ui.label("Mass");
-                ui.label(format!("{:.2}", rigidbodies.get_mass(i)));
+                ui.label(format!("{:.2}kg", rigidbodies.get_mass(i)));
 
                 ui.label("Orientation");
                 ui.columns(4, |ui| {
@@ -152,24 +156,24 @@ impl State {
                 ui.label("Inertia Tensor");
                 let iner = rigidbodies.get_inertia(i).to_cols_array_2d();
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}", iner[0][0]));
-                    ui[1].label(format!("{:.3}", iner[0][1]));
-                    ui[2].label(format!("{:.3}", iner[0][2]));
+                    ui[0].label(format!("{:.3}kg*m^2", iner[0][0]));
+                    ui[1].label(format!("{:.3}kg*m^2", iner[0][1]));
+                    ui[2].label(format!("{:.3}kg*m^2", iner[0][2]));
                 });
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}", iner[1][0]));
-                    ui[1].label(format!("{:.3}", iner[1][1]));
-                    ui[2].label(format!("{:.3}", iner[1][2]));
+                    ui[0].label(format!("{:.3}kg*m^2", iner[1][0]));
+                    ui[1].label(format!("{:.3}kg*m^2", iner[1][1]));
+                    ui[2].label(format!("{:.3}kg*m^2", iner[1][2]));
                 });
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}", iner[2][0]));
-                    ui[1].label(format!("{:.3}", iner[2][1]));
-                    ui[2].label(format!("{:.3}", iner[2][2]));
+                    ui[0].label(format!("{:.3}kg*m^2", iner[2][0]));
+                    ui[1].label(format!("{:.3}kg*m^2", iner[2][1]));
+                    ui[2].label(format!("{:.3}kg*m^2", iner[2][2]));
                 });
                 ui.label("Kinetic Energy");
-                ui.label(format!("{:.3}", 0.5 * rigidbodies.get_mass(i) * rigidbodies.get_velocity(i).length_squared()));
+                ui.label(format!("{:.3}J", 0.5 * rigidbodies.get_mass(i) * rigidbodies.get_velocity(i).length_squared()));
                 ui.label("Rotational Energy");
-                ui.label(format!("{:.3}", 0.5 * (rigidbodies.get_inertia(i) * rigidbodies.get_omega(i)).length_squared()));
+                ui.label(format!("{:.3}J", 0.5 * (rigidbodies.get_inertia(i) * rigidbodies.get_omega(i)).length_squared()));
             });
     }
 }

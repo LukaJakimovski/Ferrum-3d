@@ -7,6 +7,7 @@ use ferrum_core::math;
 use ferrum_core::math::Float;
 use ferrum_physics::physics_vertex::{Face, Polyhedron};
 use crate::{model, texture};
+use crate::texture::Texture;
 
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     let txt = {
@@ -20,12 +21,18 @@ pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
 }
 
 pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
-    let data = {
-        let path = std::env::current_dir()?
-            .join("crates/ferrum_render/res")
-            .join(file_name);
-        std::fs::read(path)?
-    };
+    let data;
+    if !file_name.is_empty(){
+        data = {
+            let path = std::env::current_dir()?
+                .join("crates/ferrum_render/res")
+                .join(file_name);
+            std::fs::read(path)?
+        };
+    } else {
+        data = vec![];
+    }
+
 
     Ok(data)
 }
@@ -131,15 +138,77 @@ pub async fn load_model(
             layout,
         ));
     }
+
+
+    if materials.len() == 0 {
+        let dimensions = (1, 1);
+        let rgba = [255, 0, 0, 255];
+
+        let size = wgpu::Extent3d {
+            width: dimensions.0,
+            height: dimensions.1,
+            depth_or_array_layers: 1,
+        };
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            &rgba,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            size,
+        );
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let diffuse_texture = Texture { texture, view, sampler };
+
+        materials.push(
+            model::Material::new(
+            device,
+            "default",
+            diffuse_texture,
+            layout,
+            ));
+    }
+
+
     let meshes = models
         .into_iter()
         .map(|m| {
             let mut vertices = (0..m.mesh.positions.len() / 3)
                 .map(|i| model::ModelVertex {
                     position: [
-                        m.mesh.positions[i * 3],
-                        m.mesh.positions[i * 3 + 1],
-                        m.mesh.positions[i * 3 + 2],
+                        m.mesh.positions[i * 3] / 10.0,
+                        m.mesh.positions[i * 3 + 1] / 10.0,
+                        m.mesh.positions[i * 3 + 2] / 10.0,
                     ],
 
                     tex_coords: if (i * 2 + 1) < m.mesh.texcoords.len() { [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]]} else {[0.0, 0.0]},

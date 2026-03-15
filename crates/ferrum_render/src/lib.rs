@@ -42,6 +42,7 @@ pub enum Mesh {
     Cylinder = 7,
     Icosahedron = 8,
     BunnyLowPoly = 9,
+    Arrow = 10,
 }
 
 #[repr(C)]
@@ -82,6 +83,8 @@ pub struct State {
     pub egui_renderer: EguiRenderer,
     pub menus: [bool; 16],
     pub timer: Timing,
+    pub is_pointer_used: bool,
+    pub selected_index: usize,
 }
 
 fn create_render_pipeline(
@@ -267,9 +270,9 @@ impl State {
         }
 
         let mut instances = vec![vec![]; obj_names.len()];
-        //instances[0].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
-        //instances[0].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
-        instances[Mesh::Corkscrew as usize].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
+        instances[Mesh::Monkey as usize].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
+        instances[Mesh::Icosahedron as usize].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
+        instances[Mesh::Arrow as usize].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
 
         let mut instance_buffers = vec![];
         for instance in &instances {
@@ -386,15 +389,16 @@ impl State {
                     .mesh(mesh)
                     .index(i)
                     .omega(math::Vec3::new(10.0, 0.0, 0.0));
+                let i = physics.rigidbodies.len();
                 physics.rigidbodies.add_body(body);
                 physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
             }
         }
         physics.energy.update_energy(&physics.rigidbodies);
         physics.energy.start_energy = physics.energy.total_energy;
-        //physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        //physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        //physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
+        physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
+        physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
         Ok(Self {
             window,
             surface,
@@ -418,11 +422,12 @@ impl State {
             light_buffer,
             light_bind_group,
             light_render_pipeline,
-            #[allow(dead_code)]
             mouse_pressed: false,
             physics,
             menus: [false; 16],
             timer: Default::default(),
+            is_pointer_used: false,
+            selected_index: 0,
         })
     }
 
