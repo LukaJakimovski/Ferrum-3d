@@ -73,7 +73,7 @@ impl State {
                 ui.label(format!("Rotational Energy: {:.3} Joules", energy.rotational_kinetic_energy));
                 ui.label(format!("Potential Energy: {:.3} Joules", energy.gravitational_potential_energy));
                 ui.label(format!("Total Energy: {:.3} Joules", energy.total_energy));
-                ui.label(format!("Delta Energy: {:.3} Joules", energy.total_energy - energy.start_energy));
+                ui.label(format!("Delta Energy: {:.10} Joules", energy.total_energy - energy.start_energy));
             });
     }
 
@@ -91,7 +91,7 @@ impl State {
                 ui.heading("Timer");
                 ui.label(format!("Runtime: {:.3}s", timer.runtime));
                 ui.label(format!("Sim Time: {:.3}s", timer.sim_time));
-                ui.label(format!("Ratio: {:.2}x", timer.runtime / timer.sim_time));
+                ui.label(format!("Ratio: {:.2}x", timer.sim_time / timer.runtime));
                 ui.label(format!("Delta Time: {:.3}ms", timer.dt * 1000.0));
                 ui.label(format!("Physics Calculation Time: {:.2}ms", timer.physics_time * 1000.0));
                 ui.label(format!("Render Calculation Time: {:.2}ms", timer.render_time * 1000.0));
@@ -104,7 +104,7 @@ impl State {
         let renderer = self.egui_renderer.context();
         let rigidbodies = &mut self.physics.rigidbodies;
         let i = &mut self.selected_index;
-        egui::Window::new("Timer")
+        egui::Window::new("Properties")
             .resizable(false)
             .vscroll(true)
             .default_open(true)

@@ -33,18 +33,19 @@ impl State{
         self.timer.frame_count = self.timer.frame_count + 1;
         self.timer.render_time_accumulator += now() - self.timer.start_time;
         if self.timer.frame_count % 10 == 0 {
-            self.timer.fps = 10.0 / (self.timer.render_time_accumulator + self.timer.physics_time_accumulator);
+
             self.timer.render_time = self.timer.render_time_accumulator * 0.1;
             self.timer.render_time_accumulator = 0.0;
         }
         self.timer.start_time = now();
-        for _i in 0..1000 {
+        for _i in 0..100 {
             self.physics.physics_update(&mut dt);
             self.timer.sim_time += dt;
-            dt = dt * 1000.0;
+            dt = dt * 100.0;
         }
         self.timer.physics_time_accumulator += now() - self.timer.start_time;
         if self.timer.frame_count % 10 == 0 {
+            self.timer.fps = 10.0 / (self.timer.render_time_accumulator + self.timer.physics_time_accumulator);
             self.timer.physics_time = self.timer.physics_time_accumulator * 0.1;
             self.timer.physics_time_accumulator = 0.0;
         }

@@ -9,23 +9,23 @@ impl Physics {
             .position(Vec3::new(-0.97000436, 0.24308753, 0.0))
             .velocity(Vec3::new(0.46620368, 0.43236573, 0.0))
             .mass(2.0)
-            .omega(Vec3::X * 20.0)
-            .mesh(Mesh::Corkscrew as usize)
-            .inertia(&self.polyhedrons[Mesh::Corkscrew as usize]);
+            .omega(Vec3::X * 1.0)
+            .mesh(Mesh::Cow as usize)
+            .inertia(&self.polyhedrons[Mesh::Cow as usize]);
 
         let body2 = RigidBody::builder()
             .position(Vec3::new(0.97000436, -0.24308753, 0.0))
             .velocity(Vec3::new(0.46620368, 0.43236573, 0.0))
             .mass(2.0)
-            .mesh(Mesh::Arrow as usize)
-            .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
+            .mesh(Mesh::Bunny as usize)
+            .inertia(&self.polyhedrons[Mesh::Bunny as usize]);
 
         let body3 = RigidBody::builder()
             .position(Vec3::ZERO)
             .velocity(Vec3::new(-0.93240737, -0.86473146, 0.0))
             .mass(2.0)
-            .mesh(Mesh::Arrow as usize)
-            .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
+            .mesh(Mesh::BunnyLowPoly as usize)
+            .inertia(&self.polyhedrons[Mesh::BunnyLowPoly as usize]);
 
         self.rigidbodies.add_body(body1);
         self.rigidbodies.add_body(body2);

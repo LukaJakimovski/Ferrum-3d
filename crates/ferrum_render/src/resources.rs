@@ -212,11 +212,11 @@ pub async fn load_model(
                     ],
 
                     tex_coords: if (i * 2 + 1) < m.mesh.texcoords.len() { [m.mesh.texcoords[i * 2], 1.0 - m.mesh.texcoords[i * 2 + 1]]} else {[0.0, 0.0]},
-                    normal: [
+                    normal: if !m.mesh.normals.is_empty() {[
                         m.mesh.normals[i * 3],
                         m.mesh.normals[i * 3 + 1],
                         m.mesh.normals[i * 3 + 2],
-                    ],
+                    ]} else {[0.0, 0.0, 0.0]},
                     // We'll calculate these later
                     tangent: [0.0; 3],
                     bitangent: [0.0; 3],

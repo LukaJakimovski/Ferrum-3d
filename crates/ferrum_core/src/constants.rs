@@ -10,6 +10,7 @@ pub enum Mesh {
     Icosahedron = 8,
     BunnyLowPoly = 9,
     Arrow = 10,
+    Cow = 11,
 }
 
-pub const OBJ_NAMES: &[&str] = &["cube.obj", "torus.obj", "monkey.obj", "rectangle.obj", "sphere.obj", "bunny.obj", "corkscrew.obj", "cylinder.obj", "icosa.obj", "bunny_low_poly.obj", "arrow.obj"];
+pub const OBJ_NAMES: &[&str] = &["cube.obj", "torus.obj", "monkey.obj", "rectangle.obj", "sphere.obj", "bunny.obj", "corkscrew.obj", "cylinder.obj", "icosa.obj", "bunny_low_poly.obj", "arrow.obj", "cow.obj"];
