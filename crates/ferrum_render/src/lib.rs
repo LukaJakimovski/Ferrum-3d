@@ -1,9 +1,9 @@
 use egui_winit::winit;
 use egui_wgpu::wgpu;
 use std::sync::Arc;
-use std::{f32::consts::PI, iter};
 use wgpu::util::DeviceExt;
 use winit::window::Window;
+use ferrum_core::constants::*;
 
 mod camera;
 mod model;
@@ -12,38 +12,26 @@ mod texture;
 mod instance;
 mod input;
 mod gui;
+mod arrows;
+mod update;
+mod render;
 
 use model::{DrawLight, DrawModel, Vertex};
-use camera::{CameraUniform};
-use glam::{Vec3, Quat};
-use ferrum_core::math::ToFloat;
+use camera::CameraUniform;
+use ferrum_core::math::{ToFloat, ToGlamQuat, ToGlamVec3};
 use crate::instance::{InstanceRaw, Instance};
-use ferrum_physics::rigidbody::{RigidBody, RigidBodySet};
+use ferrum_physics::rigidbody::RigidBodySet;
 use ferrum_physics::update::Physics;
 #[allow(unused)]
 use rand::RngExt;
-use ferrum_core::math;
 use ferrum_core::timing::Timing;
 use ferrum_physics::physics_vertex::{Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
+use crate::render::create_render_pipeline;
 use crate::resources::load_polyhedron;
 
 #[allow(unused)]
 const NUM_INSTANCES_PER_ROW: u32 = 12;
-
-pub enum Mesh {
-    Cube = 0,
-    Torus = 1,
-    Monkey = 2,
-    Rectangle = 3,
-    Sphere = 4,
-    Bunny = 5,
-    Corkscrew = 6,
-    Cylinder = 7,
-    Icosahedron = 8,
-    BunnyLowPoly = 9,
-    Arrow = 10,
-}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -87,66 +75,10 @@ pub struct State {
     pub selected_index: usize,
 }
 
-fn create_render_pipeline(
-    device: &wgpu::Device,
-    layout: &wgpu::PipelineLayout,
-    color_format: wgpu::TextureFormat,
-    depth_format: Option<wgpu::TextureFormat>,
-    vertex_layouts: &[wgpu::VertexBufferLayout],
-    shader: wgpu::ShaderModuleDescriptor,
-) -> wgpu::RenderPipeline {
-    let shader = device.create_shader_module(shader);
-
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(&format!("{:?}", shader)),
-        layout: Some(layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: Some("vs_main"),
-            buffers: vertex_layouts,
-            compilation_options: Default::default(),
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: color_format,
-                blend: Some(wgpu::BlendState {
-                    alpha: wgpu::BlendComponent::REPLACE,
-                    color: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology: wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
-            format,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        }),
-        multisample: wgpu::MultisampleState {
-            count: 1,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-        cache: None,
-    })
-}
-
 impl State {
-    pub async fn new(window: Arc<Window>) -> anyhow::Result<State> {
+    pub async fn new(
+        window: Arc<Window>,
+    ) -> anyhow::Result<State> {
         let size = window.inner_size();
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
@@ -263,16 +195,27 @@ impl State {
             label: Some("camera_bind_group"),
         });
         let mut obj_models = vec![];
-        let obj_names = vec!["cube.obj", "torus.obj", "monkey.obj", "rectangle.obj", "sphere.obj", "bunny.obj", "corkscrew.obj", "cylinder.obj", "icosa.obj", "bunny_low_poly.obj", "arrow.obj"];
-        for name in &obj_names {
+        for name in OBJ_NAMES {
             obj_models.push(resources::load_model(name, &device, &queue, &texture_bind_group_layout)
                 .await?);
         }
 
-        let mut instances = vec![vec![]; obj_names.len()];
-        instances[Mesh::Monkey as usize].push(Instance {position: Vec3::new(-0.97000436, 0.24308753, 0.0), rotation: Quat::IDENTITY});
-        instances[Mesh::Icosahedron as usize].push(Instance{position: Vec3::new(0.97000436, -0.24308753, 0.0), rotation: Quat::IDENTITY});
-        instances[Mesh::Arrow as usize].push(Instance{position: Vec3::ZERO, rotation: Quat::IDENTITY});
+        let mut polyhedrons: Vec<Polyhedron> = Default::default();
+        for name in OBJ_NAMES {
+            polyhedrons.push(load_polyhedron(name));
+        }
+
+        let mut instances = vec![vec![]; OBJ_NAMES.len()];
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default() };
+        physics.figure_eight();
+
+        for i in 0..physics.rigidbodies.len() {
+            let mesh = physics.rigidbodies.get_mesh(i);
+            let position = physics.rigidbodies.get_position(i).to_glam_vec3();
+            let rotation = physics.rigidbodies.get_orientation(i).to_glam_quat();
+            physics.rigidbodies.index[i] = instances[mesh].len();
+            instances[mesh].push(Instance {position, rotation});
+        }
 
         let mut instance_buffers = vec![];
         for instance in &instances {
@@ -371,34 +314,6 @@ impl State {
         };
 
         let egui_renderer = EguiRenderer::new(&device, config.format, &window);
-
-
-        let mut polyhedrons: Vec<Polyhedron> = Default::default();
-        for name in &obj_names {
-            polyhedrons.push(load_polyhedron(name));
-        }
-
-
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default() };
-        for (mesh, instance) in instances.iter().enumerate() {
-            for i in 0..instance.len(){
-                let body = RigidBody::builder()
-                    .position(instance[i].position.to_float())
-                    .orientation(instance[i].rotation.to_float())
-                    .inv_mass(0.5)
-                    .mesh(mesh)
-                    .index(i)
-                    .omega(math::Vec3::new(10.0, 0.0, 0.0));
-                let i = physics.rigidbodies.len();
-                physics.rigidbodies.add_body(body);
-                physics.rigidbodies.comp_inertia_tensor(i, &physics.polyhedrons[mesh]);
-            }
-        }
-        physics.energy.update_energy(&physics.rigidbodies);
-        physics.energy.start_energy = physics.energy.total_energy;
-        physics.rigidbodies.velocities[0] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        physics.rigidbodies.velocities[1] = math::Vec3::new(0.46620368, 0.43236573, 0.0);
-        physics.rigidbodies.velocities[2] = math::Vec3::new(-0.93240737, -0.86473146, 0.0);
         Ok(Self {
             window,
             surface,
@@ -442,130 +357,5 @@ impl State {
             self.depth_texture =
                 texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
-    }
-
-    pub fn update(&mut self, mut dt: f64) {
-        self.camera_controller.update_camera(&mut self.camera, dt);
-        self.camera_uniform
-            .update_view_proj(&self.camera, &self.projection);
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::cast_slice(&[self.camera_uniform]),
-        );
-
-        // Update the light
-        let old_position: Vec3 = self.light_uniform.position.into();
-        self.light_uniform.position = (Quat::from_axis_angle(
-            (0.0, 1.0, 0.0).into(),
-            (PI * dt as f32).to_radians(),
-        ) * old_position)
-            .into();
-        self.queue.write_buffer(
-            &self.light_buffer,
-            0,
-            bytemuck::cast_slice(&[self.light_uniform]),
-        );
-
-
-        self.timer.runtime += dt;
-        self.timer.fps = 1.0 / dt;
-        self.timer.dt = dt;
-        self.physics.physics_update(&mut dt);
-        self.timer.sim_time += dt;
-        self.update_instances();
-
-        // Rebuild the raw instance data and write to the buffer
-        for (mesh, instance) in self.instances.iter().enumerate() {
-            let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
-            self.queue.write_buffer(
-                &self.instance_buffers[mesh],
-                0,
-                bytemuck::cast_slice(&instance_data),
-            );
-        }
-
-    }
-
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.window.request_redraw();
-
-        if !self.is_surface_configured {
-            return Ok(());
-        }
-
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.depth_texture.view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                occlusion_query_set: None,
-                timestamp_writes: None,
-            });
-            let mut index = 0;
-            for i in 0..self.instances.len() {
-                if self.instances[i].len() != 0{
-                    index = i;
-                    break
-                }
-            }
-
-            render_pass.set_vertex_buffer(1, self.instance_buffers[index].slice(..));
-            render_pass.set_pipeline(&self.light_render_pipeline);
-            render_pass.draw_light_model(
-                &self.obj_models[index],
-                &self.camera_bind_group,
-                &self.light_bind_group,
-            );
-            for (mesh, instance_buffer) in self.instance_buffers.iter().enumerate() {
-                if self.instances[mesh].len() != 0 {
-                    render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
-                    render_pass.set_pipeline(&self.render_pipeline);
-                    render_pass.draw_model_instanced(
-                        &self.obj_models[mesh],
-                        0..self.instances[mesh].len() as u32,
-                        &self.camera_bind_group,
-                        &self.light_bind_group,
-                    );
-                }
-            }
-        }
-        self.create_gui(&mut encoder, &view);
-
-        self.queue.submit(iter::once(encoder.finish()));
-        output.present();
-
-        Ok(())
     }
 }

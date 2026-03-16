@@ -1,4 +1,6 @@
 use ferrum_core::math::{Float, Mat3, Quat, Vec3};
+use crate::mass_properties::comp_volume_integrals;
+use crate::physics_vertex::Polyhedron;
 use crate::rigidbody::RigidBodySet;
 
 #[derive(Default)]
@@ -65,7 +67,7 @@ impl RigidBody {
         self
     }
     #[allow(unused)]
-    pub fn inv_mass(mut self, inv_mass: Float) -> Self {
+    fn inv_mass(mut self, inv_mass: Float) -> Self {
         self.inv_mass = inv_mass;
         self.mass = 1.0 / inv_mass;
         self
@@ -77,8 +79,46 @@ impl RigidBody {
         self
     }
     #[allow(unused)]
-    pub fn inertia(mut self, inertia: Mat3) -> Self {
+    pub fn inertia(mut self, polyhedron: &Polyhedron) -> Self {
+        #[allow(non_snake_case)]
+        let (T0, T1, T2, TP) = comp_volume_integrals(polyhedron);
+        let r = T1 / T0;
+        let density = self.mass / T0;
+
+        #[allow(non_snake_case)]
+        let mut J = self.inertia.to_cols_array_2d();
+        let mass = self.mass;
+
+
+        /* compute inertia tensor */
+        J[0][0] = density * (T2[1] + T2[2]);
+        J[1][1] = density * (T2[2] + T2[0]);
+        J[2][2] = density * (T2[0] + T2[1]);
+        J[1][0] = - density * TP[0];
+        J[0][1] = J[1][0];
+        J[2][1] = - density * TP[1];
+        J[1][2] = J[2][1];
+        J[0][2] = - density * TP[2];
+        J[2][0] = J[0][2];
+
+        /* translate inertia tensor to center of mass */
+        J[0][0] -= mass * (r[1]*r[1] + r[2]*r[2]);
+        J[1][1] -= mass * (r[2]*r[2] + r[0]*r[0]);
+        J[2][2] -= mass * (r[0]*r[0] + r[1]*r[1]);
+        J[1][0] += mass * r[0] * r[1];
+        J[2][1] += mass * r[1] * r[2];
+        J[0][2] += mass * r[2] * r[0];
+        J[0][1] = J[1][0];
+        J[1][2] = J[2][1];
+        J[2][0] = J[0][2];
+
+        self.inertia = Mat3::from_cols_array_2d(&J);
+        self.inv_inertia = self.inertia.inverse();
+        self
+    }
+    fn set_inertia(mut self, inertia: Mat3) -> Self {
         self.inertia = inertia;
+        self.inv_inertia = self.inertia.inverse();
         self
     }
     #[allow(unused)]
@@ -117,7 +157,7 @@ impl RigidBody {
             .omega(set.omega[i])
             .orientation(set.orientations[i])
             .velocity(set.velocities[i])
-            .inertia(set.inertia[i])
+            .set_inertia(set.inertia[i])
             .position(set.positions[i])
             .restitution(set.restitution[i])
             .sleeping(set.is_sleeping[i])

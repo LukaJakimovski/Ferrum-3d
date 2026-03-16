@@ -73,3 +73,27 @@ impl ToFloat for glam::Mat4 {
         crate::math::Mat4::from_cols_array(&self.to_cols_array().map(|x| x as Float))
     }
 }
+
+
+pub trait ToGlamVec3 {
+    type Output;
+    fn to_glam_vec3(self) -> Self::Output;
+}
+impl ToGlamVec3 for crate::math::Vec3 {
+    type Output = glam::Vec3;
+    fn to_glam_vec3(self) -> glam::Vec3 {
+        glam::Vec3::new(self.x as f32, self.y as f32, self.z as f32)
+    }
+}
+
+pub trait ToGlamQuat {
+    type Output;
+    fn to_glam_quat(self) -> Self::Output;
+}
+
+impl ToGlamQuat for crate::math::Quat {
+    type Output = glam::Quat;
+    fn to_glam_quat(self) -> glam::Quat {
+        glam::Quat::from_xyzw(self.x as f32, self.y as f32, self.z as f32, self.w as f32)
+    }
+}

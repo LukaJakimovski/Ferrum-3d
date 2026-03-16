@@ -5,9 +5,9 @@ pub use crate::rigidbodybuilder::RigidBody;
 
 #[derive(Clone)]
 pub struct RigidBodySet {
-    pub positions:    Vec<Vec3>,   // hot  - read every frame
+    pub positions:           Vec<Vec3>,   // hot  - read every frame
     pub velocities:          Vec<Vec3>,   // hot  - read every frame
-    pub omega:        Vec<Vec3>,
+    pub omega:               Vec<Vec3>,
     pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
     pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
     pub(crate) forces:       Vec<Vec3>,   // hot  - written every frame
@@ -18,7 +18,8 @@ pub struct RigidBodySet {
     pub(crate) inv_inertia:  Vec<Mat3>,
     pub(crate) restitution:  Vec<Float>,  // cold - only on collision
     pub(crate) is_sleeping:  Vec<bool>,   // cold
-    pub(crate) index:        Vec<usize>,
+    pub index:        Vec<usize>,
+    pub mass_center:         Vec<Vec3>,
 }
 
 impl RigidBodySet {
@@ -92,6 +93,7 @@ impl RigidBodySet {
 
         self.inertia[body_id] = Mat3::from_cols_array_2d(&J);
         self.inv_inertia[body_id] = self.inertia[body_id].inverse();
+        self.mass_center[body_id] = r;
     }
 
     pub fn new(num_bodies: usize) -> RigidBodySet {
@@ -110,6 +112,7 @@ impl RigidBodySet {
             mesh:           vec![0; num_bodies],
             index:          vec![0; num_bodies],
             omega:          vec![Vec3::ZERO; num_bodies],
+            mass_center:    vec![Vec3::ZERO; num_bodies],
         }
     }
     
@@ -123,6 +126,7 @@ impl RigidBodySet {
         self.forces.push(Vec3::ZERO);
         self.torques.push(Vec3::ZERO);
         self.inv_mass.push(0.0);
+        self.mass.push(0.0);
         self.inertia.push(Mat3::ZERO);
         self.inv_inertia.push(Mat3::ZERO);
         self.restitution.push(0.0);
@@ -130,6 +134,7 @@ impl RigidBodySet {
         self.mesh.push(0);
         self.index.push(0);
         self.omega.push(Vec3::ZERO);
+        self.mass_center.push(Vec3::ZERO);
     }
     
     pub fn add_body(&mut self, builder: RigidBody){
@@ -147,6 +152,7 @@ impl RigidBodySet {
         self.mesh.push(builder.mesh);
         self.index.push(builder.index);
         self.omega.push(builder.omega);
+        self.mass_center.push(Vec3::ZERO);
     }
     
 }

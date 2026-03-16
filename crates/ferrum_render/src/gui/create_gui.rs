@@ -100,7 +100,7 @@ impl State {
 
     fn properties_menu(&mut self){
         let renderer = self.egui_renderer.context();
-        let rigidbodies = &self.physics.rigidbodies;
+        let rigidbodies = &mut self.physics.rigidbodies;
         let i = &mut self.selected_index;
         egui::Window::new("Timer")
             .resizable(false)
@@ -125,11 +125,11 @@ impl State {
                     ui[1].label(format!("{:.3}m", rigidbodies.positions[i].y));
                     ui[2].label(format!("{:.3}m", rigidbodies.positions[i].z));
                 });
-                ui.label(format!("Velocity {}m/s", rigidbodies.velocities[i].length()));
+                ui.label(format!("Velocity {:.3}m/s", rigidbodies.velocities[i].length()));
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}m/s", rigidbodies.velocities[i].x));
-                    ui[1].label(format!("{:.3}m/s", rigidbodies.velocities[i].y));
-                    ui[2].label(format!("{:.3}m/s", rigidbodies.velocities[i].z));
+                    ui[0].add(egui::DragValue::new(&mut rigidbodies.velocities[i].x).speed(0.01));
+                    ui[1].add(egui::DragValue::new(&mut rigidbodies.velocities[i].y).speed(0.01));
+                    ui[2].add(egui::DragValue::new(&mut rigidbodies.velocities[i].z).speed(0.01));
                 });
                 ui.label(format!("Force {}N", rigidbodies.get_forces(i).length()));
                 ui.columns(3, |ui| {
@@ -147,7 +147,13 @@ impl State {
                     ui[2].label(format!("{:.3}y", rigidbodies.get_orientation(i).z));
                     ui[3].label(format!("{:.3}z", rigidbodies.get_orientation(i).w));
                 });
-                ui.label(format!("Torque {}Nm", rigidbodies.get_torques(i).length()));
+                ui.label("Angular Velocity");
+                ui.columns(4, |ui| {
+                    ui[0].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).x));
+                    ui[1].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).y));
+                    ui[2].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).z));
+                });
+                ui.label(format!("Torque {:.3}Nm", rigidbodies.get_torques(i).length()));
                 ui.columns(3, |ui| {
                     ui[0].label(format!("{:.3}N", rigidbodies.get_torques(i).x));
                     ui[1].label(format!("{:.3}N", rigidbodies.get_torques(i).y));
