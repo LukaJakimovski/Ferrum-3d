@@ -1,13 +1,21 @@
 use glam::{Quat, Vec3};
+use ferrum_core::math;
+use ferrum_core::math::ToGlamVec3;
 use crate::instance::Instance;
 
-struct Arrow {
-    transform: Instance,
-    index: usize,
+pub struct Arrow {
+    pub(crate) transform: Option<*mut Instance>,
+    pub(crate) vec: Option<*const math::Vec3>,
 }
 
 impl Arrow {
-    pub fn rotation_from_vec3(&mut self, vec: Vec3){
+    pub fn update_orientation(&mut self) {
+        if self.transform.is_none() || self.vec.is_none() {
+            println!("Not pointing to object");
+            return;
+        }
+
+        let vec = unsafe { &*self.vec.unwrap() }.to_glam_vec3();
         let norm = vec.normalize();
         let rotation = if norm.dot(Vec3::NEG_X).abs() > 0.9999 {
             if norm.dot(Vec3::NEG_X) > 0.0 {
@@ -23,6 +31,7 @@ impl Arrow {
             Quat::from_axis_angle(axis, angle)
         };
 
-        self.transform.rotation = rotation;
+        let transform = unsafe { &mut *self.transform.unwrap() };
+        transform.rotation = rotation;
     }
 }

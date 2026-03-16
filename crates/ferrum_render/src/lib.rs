@@ -16,22 +16,18 @@ mod arrows;
 mod update;
 mod render;
 
-use model::{DrawLight, DrawModel, Vertex};
+use model::Vertex;
 use camera::CameraUniform;
-use ferrum_core::math::{ToFloat, ToGlamQuat, ToGlamVec3};
+use ferrum_core::math::{ToGlamQuat, ToGlamVec3};
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody::RigidBodySet;
 use ferrum_physics::update::Physics;
-#[allow(unused)]
-use rand::RngExt;
 use ferrum_core::timing::Timing;
 use ferrum_physics::physics_vertex::{Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
 use crate::render::create_render_pipeline;
 use crate::resources::load_polyhedron;
-
-#[allow(unused)]
-const NUM_INSTANCES_PER_ROW: u32 = 12;
+use crate::arrows::arrows::Arrow;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -67,12 +63,13 @@ pub struct State {
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
     pub mouse_pressed: bool,
-    physics: Physics,
+    physics: Box<Physics>,
     pub egui_renderer: EguiRenderer,
     pub menus: [bool; 16],
     pub timer: Timing,
     pub is_pointer_used: bool,
     pub selected_index: usize,
+    arrows: Vec<Arrow>,
 }
 
 impl State {
@@ -207,6 +204,7 @@ impl State {
 
         let mut instances = vec![vec![]; OBJ_NAMES.len()];
         let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default() };
+        let mut arrows: Vec<Arrow> = Default::default();
         physics.figure_eight();
 
         for i in 0..physics.rigidbodies.len() {
@@ -215,8 +213,12 @@ impl State {
             let rotation = physics.rigidbodies.get_orientation(i).to_glam_quat();
             physics.rigidbodies.index[i] = instances[mesh].len();
             instances[mesh].push(Instance {position, rotation});
-        }
+            let index = instances[mesh].len() - 1;
+            if mesh == Mesh::Arrow as usize {
+                arrows.push( Arrow { transform: Some(&mut instances[mesh][index]), vec: Some(&physics.rigidbodies.velocities[i])});
+            }
 
+        }
         let mut instance_buffers = vec![];
         for instance in &instances {
             let instance_data = instance.iter().map(Instance::to_raw).collect::<Vec<_>>();
@@ -338,11 +340,12 @@ impl State {
             light_bind_group,
             light_render_pipeline,
             mouse_pressed: false,
-            physics,
+            physics: Box::new(physics),
             menus: [false; 16],
             timer: Default::default(),
             is_pointer_used: false,
             selected_index: 0,
+            arrows,
         })
     }
 

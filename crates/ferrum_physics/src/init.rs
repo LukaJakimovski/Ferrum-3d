@@ -17,7 +17,6 @@ impl Physics {
             .position(Vec3::new(0.97000436, -0.24308753, 0.0))
             .velocity(Vec3::new(0.46620368, 0.43236573, 0.0))
             .mass(2.0)
-            .omega(Vec3::Z)
             .mesh(Mesh::Arrow as usize)
             .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
 
@@ -25,7 +24,6 @@ impl Physics {
             .position(Vec3::ZERO)
             .velocity(Vec3::new(-0.93240737, -0.86473146, 0.0))
             .mass(2.0)
-            .omega(Vec3::Z)
             .mesh(Mesh::Arrow as usize)
             .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
 

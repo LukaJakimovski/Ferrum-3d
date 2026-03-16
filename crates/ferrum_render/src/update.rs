@@ -1,8 +1,7 @@
 use std::f32::consts::PI;
 use glam::{Quat, Vec3};
-use ferrum_core::math;
 use crate::instance::Instance;
-use crate::{Mesh, State};
+use crate::State;
 
 impl State{
     pub fn update(&mut self, mut dt: f64) {
@@ -28,33 +27,16 @@ impl State{
             bytemuck::cast_slice(&[self.light_uniform]),
         );
 
-        for arrow in 0..self.instances[Mesh::Arrow as usize].len() {
-            let vec = &self.physics.rigidbodies.velocities[arrow];
-            let norm = vec.normalize();
-
-            let rotation = if norm.dot(math::Vec3::NEG_X).abs() > 0.9999 {
-                if norm.dot(math::Vec3::NEG_X) > 0.0 {
-                    // Already pointing -X, no rotation needed
-                    math::Quat::IDENTITY
-                } else {
-                    // Pointing +X, rotate 180° around Y
-                    math::Quat::from_axis_angle(math::Vec3::Y, std::f64::consts::PI)
-                }
-            } else {
-                let axis = norm.cross(math::Vec3::NEG_X).normalize();
-                let angle = -norm.dot(math::Vec3::NEG_X).acos();
-                math::Quat::from_axis_angle(axis, angle)
-            };
-
-            self.instances[Mesh::Arrow as usize][arrow].rotation = rotation.as_quat();
-        }
-
         self.timer.runtime += dt;
         self.timer.fps = 1.0 / dt;
         self.timer.dt = dt;
         self.physics.physics_update(&mut dt);
         self.timer.sim_time += dt;
         self.update_instances();
+        for arrow in self.arrows.iter_mut() {
+            arrow.update_orientation();
+        }
+
 
         // Rebuild the raw instance data and write to the buffer
         for (mesh, instance) in self.instances.iter().enumerate() {
