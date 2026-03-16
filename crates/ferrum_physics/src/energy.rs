@@ -1,4 +1,4 @@
-use ferrum_core::math::Float;
+use ferrum_core::math::{Float, Mat3};
 use crate::rigidbody::RigidBodySet;
 
 #[derive(Default)]
@@ -29,7 +29,10 @@ impl Energy {
     fn update_rotational_kinetic_energy(&mut self, rigidbodies: &RigidBodySet) {
         self.rotational_kinetic_energy = 0.0;
         for i in 0..rigidbodies.len(){
-            self.rotational_kinetic_energy = self.rotational_kinetic_energy + 0.5 * (rigidbodies.inertia[i] * rigidbodies.omega[i]).length_squared();
+            let r = Mat3::from_quat(rigidbodies.orientations[i]);
+            let omega_body = r.transpose() * rigidbodies.omega[i];
+            let iomega = rigidbodies.inertia[i] * omega_body;
+            self.rotational_kinetic_energy = self.rotational_kinetic_energy + 0.5 * omega_body.dot(iomega);
         }
     }
 

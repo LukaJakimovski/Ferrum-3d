@@ -9,9 +9,9 @@ impl Physics {
             .position(Vec3::new(-0.97000436, 0.24308753, 0.0))
             .velocity(Vec3::new(0.46620368, 0.43236573, 0.0))
             .mass(2.0)
-            .omega(Vec3::Z)
+            .omega(Vec3::X * 20.0)
             .mesh(Mesh::Corkscrew as usize)
-            .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
+            .inertia(&self.polyhedrons[Mesh::Corkscrew as usize]);
 
         let body2 = RigidBody::builder()
             .position(Vec3::new(0.97000436, -0.24308753, 0.0))

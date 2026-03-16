@@ -13,6 +13,7 @@ pub struct Physics {
 
 impl Physics{
     pub fn physics_update(&mut self, dt: &mut f64) {
+        *dt = 0.001 * *dt;
         let dt = *dt as Float;
         // Mutably access an instance and change its position
         let snap_positions = self.rigidbodies.positions.clone();

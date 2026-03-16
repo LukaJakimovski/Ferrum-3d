@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 use glam::{Quat, Vec3};
+use ferrum_core::time::now;
 use crate::instance::Instance;
 use crate::State;
 
@@ -28,10 +29,27 @@ impl State{
         );
 
         self.timer.runtime += dt;
-        self.timer.fps = 1.0 / dt;
         self.timer.dt = dt;
-        self.physics.physics_update(&mut dt);
-        self.timer.sim_time += dt;
+        self.timer.frame_count = self.timer.frame_count + 1;
+        self.timer.render_time_accumulator += now() - self.timer.start_time;
+        if self.timer.frame_count % 10 == 0 {
+            self.timer.fps = 10.0 / (self.timer.render_time_accumulator + self.timer.physics_time_accumulator);
+            self.timer.render_time = self.timer.render_time_accumulator * 0.1;
+            self.timer.render_time_accumulator = 0.0;
+        }
+        self.timer.start_time = now();
+        for _i in 0..1000 {
+            self.physics.physics_update(&mut dt);
+            self.timer.sim_time += dt;
+            dt = dt * 1000.0;
+        }
+        self.timer.physics_time_accumulator += now() - self.timer.start_time;
+        if self.timer.frame_count % 10 == 0 {
+            self.timer.physics_time = self.timer.physics_time_accumulator * 0.1;
+            self.timer.physics_time_accumulator = 0.0;
+        }
+        self.timer.start_time = now();
+
         self.update_instances();
         for arrow in self.arrows.iter_mut() {
             arrow.update_orientation();

@@ -19,6 +19,7 @@ mod render;
 use model::Vertex;
 use camera::CameraUniform;
 use ferrum_core::math::{ToGlamQuat, ToGlamVec3};
+use ferrum_core::time::now;
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody::RigidBodySet;
 use ferrum_physics::update::Physics;
@@ -342,7 +343,7 @@ impl State {
             mouse_pressed: false,
             physics: Box::new(physics),
             menus: [false; 16],
-            timer: Default::default(),
+            timer: Timing { start_time: now(), ..Default::default()},
             is_pointer_used: false,
             selected_index: 0,
             arrows,

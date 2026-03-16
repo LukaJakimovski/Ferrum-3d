@@ -93,7 +93,9 @@ impl State {
                 ui.label(format!("Sim Time: {:.3}s", timer.sim_time));
                 ui.label(format!("Ratio: {:.2}x", timer.runtime / timer.sim_time));
                 ui.label(format!("Delta Time: {:.3}ms", timer.dt * 1000.0));
-                ui.label(format!("Render FPS: {:.1}fps", timer.fps));
+                ui.label(format!("Physics Calculation Time: {:.2}ms", timer.physics_time * 1000.0));
+                ui.label(format!("Render Calculation Time: {:.2}ms", timer.render_time * 1000.0));
+                ui.label(format!("FPS: {:.1}fps", timer.fps));
 
             });
     }
