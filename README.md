@@ -10,6 +10,5 @@ A 3d Physics Engine written in Rust
 
 # todo!
 - Way to load a configuration
-- Way to draw Vectors
 - Way to remove an object
 - Have objects with a given color
