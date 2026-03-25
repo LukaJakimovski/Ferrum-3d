@@ -4,6 +4,7 @@ members = [
     "crates/ferrum_physics",
     "crates/ferrum_render",
     "crates/ferrum_app",
+    "crates/ferrum_collision",
 ]
 resolver = "2"
 
@@ -26,6 +27,7 @@ rand = "0.10.0"
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
 
 # internal crates
-ferrum_core    = { path = "crates/ferrum_core", features = ["f64"] }
-ferrum_physics = { path = "crates/ferrum_physics" }
-ferrum_render  = { path = "crates/ferrum_render" }
+ferrum_core      = { path = "crates/ferrum_core", features = ["f64"] }
+ferrum_physics   = { path = "crates/ferrum_physics" }
+ferrum_render    = { path = "crates/ferrum_render" }
+ferrum_collision = { path = "crates/ferrum_collision" }

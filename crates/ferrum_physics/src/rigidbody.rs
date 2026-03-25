@@ -18,7 +18,8 @@ pub struct RigidBodySet {
     pub(crate) inv_inertia:  Vec<Mat3>,
     pub(crate) restitution:  Vec<Float>,  // cold - only on collision
     pub(crate) is_sleeping:  Vec<bool>,   // cold
-    pub index:        Vec<usize>,
+    pub(crate) colliding:    Vec<bool>,
+    pub index:               Vec<usize>,
     pub mass_center:         Vec<Vec3>,
 }
 
@@ -113,6 +114,7 @@ impl RigidBodySet {
             index:          vec![0; num_bodies],
             omega:          vec![Vec3::ZERO; num_bodies],
             mass_center:    vec![Vec3::ZERO; num_bodies],
+            colliding:      vec![false; num_bodies],
         }
     }
     
@@ -135,6 +137,7 @@ impl RigidBodySet {
         self.index.push(0);
         self.omega.push(Vec3::ZERO);
         self.mass_center.push(Vec3::ZERO);
+        self.colliding.push(false);
     }
     
     pub fn add_body(&mut self, builder: RigidBody){
@@ -153,6 +156,7 @@ impl RigidBodySet {
         self.index.push(builder.index);
         self.omega.push(builder.omega);
         self.mass_center.push(Vec3::ZERO);
+        self.colliding.push(false);
     }
     
 }

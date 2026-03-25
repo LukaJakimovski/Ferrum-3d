@@ -34,4 +34,29 @@ impl Physics {
         self.energy.update_energy(&self.rigidbodies);
         self.energy.start_energy = self.energy.total_energy;
     }
+
+    pub fn two_objects(&mut self){
+        let body1 = RigidBody::builder()
+            .position(Vec3::new(0.0, 0.0, 0.0))
+            .velocity(Vec3::new(0.0, 0.0, 0.0))
+            .omega(Vec3::X * 1.0)
+            .mass(1.0)
+            .mesh(Mesh::Icosahedron as usize)
+            .inertia(&self.polyhedrons[Mesh::Icosahedron as usize]);
+
+
+        let body2 = RigidBody::builder()
+            .position(Vec3::new(10.0, 0.0, 0.0))
+            .velocity(Vec3::new(0.0, 0.0, 0.0))
+            .omega(Vec3::X * 1.0)
+            .mass(1.0)
+            .mesh(Mesh::Cylinder as usize)
+            .inertia(&self.polyhedrons[Mesh::Cylinder as usize]);
+
+        self.rigidbodies.add_body(body1);
+        self.rigidbodies.add_body(body2);
+
+        self.energy.update_energy(&self.rigidbodies);
+        self.energy.start_energy = self.energy.total_energy;
+    }
 }
