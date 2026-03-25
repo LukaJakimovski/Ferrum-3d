@@ -12,7 +12,7 @@ use crate::texture::Texture;
 pub async fn load_string(file_name: &str) -> anyhow::Result<String> {
     let txt = {
         let path = std::env::current_dir()?
-            .join("crates/ferrum_render/res")
+            .join("res")
             .join(file_name);
         std::fs::read_to_string(path)?
     };
@@ -25,7 +25,7 @@ pub async fn load_binary(file_name: &str) -> anyhow::Result<Vec<u8>> {
     if !file_name.is_empty(){
         data = {
             let path = std::env::current_dir()?
-                .join("crates/ferrum_render/res")
+                .join("res")
                 .join(file_name);
             std::fs::read(path)?
         };
@@ -50,7 +50,7 @@ pub async fn load_texture(
 pub fn load_polyhedron(file_name: &str) -> Polyhedron {
     let path = std::env::current_dir()
         .expect("failed to get current dir")
-        .join("crates/ferrum_render/res")
+        .join("res")
         .join(file_name);
     let contents = fs::read_to_string(path)
         .expect("Could not read file");
