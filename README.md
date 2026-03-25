@@ -62,7 +62,7 @@ You can also download the most recent precompiled binary for your platform in
 
   Which was my reference for calculating the center of mass, density, volume, and moment of inertia of rigid-bodies
 
-* [Wei, X., Liu, M., Ling, Z., & Su, H. (2022)](https://doi.org/10.1145/3528223.3530077).
+* [Wei, X., Liu, M., Ling, Z., & Su, H. (2022)](https://doi.org/10.1145/3528223.3530077).  
   *Approximate convex decomposition for 3D meshes with collision-aware concavity and tree search* 
   ACM Transactions on Graphics, 41(4), 1–18.
 
