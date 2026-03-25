@@ -1,8 +1,11 @@
 use ferrum_collision::gjk::gjk_intersects;
-use crate::update::Physics;
+use crate::Physics;
 
 impl Physics {
     pub fn resolve_collisions(&mut self) {
+        for i in 0..self.rigidbodies.len() {
+            self.rigidbodies.colliding[i] = false;
+        }
         for i in 0..self.rigidbodies.len() {
             for j in i + 1..self.rigidbodies.len() {
                 let mesh_a = self.rigidbodies.mesh[i];

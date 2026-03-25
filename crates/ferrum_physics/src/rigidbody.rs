@@ -1,75 +1,95 @@
-use ferrum_core::math::{Vec3, Quat, Float, Mat3};
+use ferrum_core::math::{Float, Mat3, Quat, Vec3};
 use crate::mass_properties::comp_volume_integrals;
-use crate::physics_vertex::Polyhedron;
-pub use crate::rigidbodybuilder::RigidBody;
+use crate::polyhedron::Polyhedron;
+use crate::rigidbody_set::RigidBodySet;
 
+#[derive(Default)]
 #[derive(Clone)]
-pub struct RigidBodySet {
-    pub positions:           Vec<Vec3>,   // hot  - read every frame
-    pub velocities:          Vec<Vec3>,   // hot  - read every frame
-    pub omega:               Vec<Vec3>,
-    pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
-    pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
-    pub(crate) forces:       Vec<Vec3>,   // hot  - written every frame
-    pub(crate) torques:      Vec<Vec3>,
-    pub(crate) inv_mass:     Vec<Float>,  // warm - read once every frame
-    pub(crate) mass:         Vec<Float>,
-    pub(crate) inertia:      Vec<Mat3>,   // warm - read once every frame
-    pub(crate) inv_inertia:  Vec<Mat3>,
-    pub(crate) restitution:  Vec<Float>,  // cold - only on collision
-    pub(crate) is_sleeping:  Vec<bool>,   // cold
-    pub(crate) colliding:    Vec<bool>,
-    pub index:               Vec<usize>,
-    pub mass_center:         Vec<Vec3>,
+pub struct RigidBody {
+    pub(crate) position: Vec3,    // hot - read every frame
+    pub(crate) velocity: Vec3,    // hot - read every frame
+    pub(crate) orientation: Quat,    // hot - read every frame
+    pub(crate) force: Vec3,    // hot - written every frame
+    pub(crate) torque: Vec3,
+    pub(crate) mesh: usize,
+    pub(crate) inv_mass: Float,     // warm
+    pub(crate) inertia: Mat3,    // warm
+    pub(crate) restitution: Float,     // cold - only on collision
+    pub(crate) _is_sleeping: bool,    // cold
+    pub(crate) index: usize,
+    pub(crate) omega: Vec3,
+    pub(crate) mass: Float,
+    pub inv_inertia: Mat3
 }
 
-impl RigidBodySet {
-    pub fn translate(&mut self, translation: Vec3, body_id: usize) {
-        self.positions[body_id] += translation;
-    }
+impl RigidBody {
 
-    pub fn move_to(&mut self, position: Vec3, body_id: usize) {
-        self.positions[body_id].x = position.x;
-        self.positions[body_id].y = position.y;
-        self.positions[body_id].z = position.z;
+    pub fn builder() -> Self {
+        let mut body: RigidBody = Default::default();
+        body.position = Vec3::ZERO;
+        body.velocity = Vec3::ZERO;
+        body.orientation = Quat::IDENTITY;
+        body.force = Vec3::ZERO;
+        body.inv_mass = 0.0;
+        body.inertia = Mat3::ZERO;
+        body.inv_inertia = Mat3::ZERO;
+        body.torque = Vec3::ZERO;
+        body.restitution = 0.0;
+        body._is_sleeping = false;
+        body.mesh = 0;
+        body.index = 0;
+        body.mass = 0.0;
+        body
     }
-
-    pub fn rotate(&mut self, rotation: Quat, body_id: usize) {
-        self.orientations[body_id] = self.orientations[body_id] * rotation;
+    #[allow(unused)]
+    pub fn position(mut self, position: Vec3) -> Self {
+        self.position = position;
+        self
     }
-
-    pub fn get_position(&self, body_id: usize) -> Vec3 {
-        self.positions[body_id]
+    #[allow(unused)]
+    pub fn velocity(mut self, velocity: Vec3) -> Self {
+        self.velocity = velocity;
+        self
     }
-    pub fn get_velocity(&self, body_id: usize) -> Vec3 {
-        self.velocities[body_id]
+    #[allow(unused)]
+    pub fn orientation(mut self, orientation: Quat) -> Self {
+        self.orientation = orientation;
+        self
     }
-    pub fn get_orientation(&self, body_id: usize) -> Quat {
-        self.orientations[body_id]
+    #[allow(unused)]
+    pub fn force(mut self, force: Vec3) -> Self {
+        self.force = force;
+        self
     }
-    pub fn get_inv_mass(&self, body_id: usize) -> Float { self.inv_mass[body_id] }
-    pub fn get_mesh(&self, body_id: usize) -> usize { self.mesh[body_id] }
-    pub fn get_omega(&self, body_id: usize) -> Vec3 { self.omega[body_id] }
-    pub fn get_forces(&self, body_id: usize) -> Vec3 { self.forces[body_id] }
-    pub fn get_torques(&self, body_id: usize) -> Vec3 { self.torques[body_id] }
-    pub fn get_mass(&self, body_id: usize) -> Float { self.mass[body_id] }
-    pub fn get_inertia(&self, body_id: usize) -> Mat3 { self.inertia[body_id] }
-    pub fn get_inv_inertia(&self, body_id: usize) -> Mat3 { self.inv_inertia[body_id] }
-    pub fn get_restitution(&self, body_id: usize) -> Float { self.restitution[body_id] }
-    pub fn get_index(&self, body_id: usize) -> usize { self.index[body_id] }
+    #[allow(unused)]
+    fn torque(mut self, torque: Vec3) -> Self {
+        self.torque = torque;
+        self
+    }
+    #[allow(unused)]
+    fn inv_mass(mut self, inv_mass: Float) -> Self {
+        self.inv_mass = inv_mass;
+        self.mass = 1.0 / inv_mass;
+        self
+    }
     
-
-    pub fn comp_inertia_tensor(&mut self, body_id: usize, polyhedron: &Polyhedron){
+    pub fn mass(mut self, mass: Float) -> Self {
+        self.mass = mass;
+        self.inv_mass = 1.0 / mass;
+        self
+    }
+    #[allow(unused)]
+    pub fn inertia(mut self, polyhedron: &Polyhedron) -> Self {
         #[allow(non_snake_case)]
         let (T0, T1, T2, TP) = comp_volume_integrals(polyhedron);
         let r = T1 / T0;
-        let density = self.mass[body_id] / T0;
+        let density = self.mass / T0;
 
         #[allow(non_snake_case)]
-        let mut J = self.inertia[body_id].to_cols_array_2d();
-        let mass = self.mass[body_id];
-        
-        
+        let mut J = self.inertia.to_cols_array_2d();
+        let mass = self.mass;
+
+
         /* compute inertia tensor */
         J[0][0] = density * (T2[1] + T2[2]);
         J[1][1] = density * (T2[2] + T2[0]);
@@ -92,71 +112,54 @@ impl RigidBodySet {
         J[1][2] = J[2][1];
         J[2][0] = J[0][2];
 
-        self.inertia[body_id] = Mat3::from_cols_array_2d(&J);
-        self.inv_inertia[body_id] = self.inertia[body_id].inverse();
-        self.mass_center[body_id] = r;
+        self.inertia = Mat3::from_cols_array_2d(&J);
+        self.inv_inertia = self.inertia.inverse();
+        self
+    }
+    fn set_inertia(mut self, inertia: Mat3) -> Self {
+        self.inertia = inertia;
+        self.inv_inertia = self.inertia.inverse();
+        self
+    }
+    #[allow(unused)]
+    pub fn restitution(mut self, restitution: Float) -> Self {
+        self.restitution = restitution;
+        self
     }
 
-    pub fn new(num_bodies: usize) -> RigidBodySet {
-        RigidBodySet {
-            positions:      vec![Vec3::ZERO; num_bodies],
-            velocities:     vec![Vec3::ZERO; num_bodies],
-            orientations:   vec![Quat::IDENTITY; num_bodies],
-            forces:         vec![Vec3::ZERO; num_bodies],
-            torques:        vec![Vec3::ZERO; num_bodies],
-            inv_mass:       vec![0.0; num_bodies],
-            mass:           vec![0.0; num_bodies],
-            inv_inertia:    vec![Mat3::ZERO; num_bodies],
-            inertia:        vec![Mat3::ZERO; num_bodies],
-            restitution:    vec![0.0; num_bodies],
-            is_sleeping:    vec![false; num_bodies],
-            mesh:           vec![0; num_bodies],
-            index:          vec![0; num_bodies],
-            omega:          vec![Vec3::ZERO; num_bodies],
-            mass_center:    vec![Vec3::ZERO; num_bodies],
-            colliding:      vec![false; num_bodies],
-        }
+    pub fn mesh(mut self, mesh: usize) -> Self {
+        self.mesh = mesh;
+        self
     }
     
-    pub fn len(&self) -> usize {
-        self.positions.len()
-    }
-    pub fn add_default(&mut self) {
-        self.positions.push(Vec3::ZERO);
-        self.velocities.push(Vec3::ZERO);
-        self.orientations.push(Quat::IDENTITY);
-        self.forces.push(Vec3::ZERO);
-        self.torques.push(Vec3::ZERO);
-        self.inv_mass.push(0.0);
-        self.mass.push(0.0);
-        self.inertia.push(Mat3::ZERO);
-        self.inv_inertia.push(Mat3::ZERO);
-        self.restitution.push(0.0);
-        self.is_sleeping.push(false);
-        self.mesh.push(0);
-        self.index.push(0);
-        self.omega.push(Vec3::ZERO);
-        self.mass_center.push(Vec3::ZERO);
-        self.colliding.push(false);
+    pub fn index(mut self, index: usize) -> Self {
+        self.index = index;
+        self
     }
     
-    pub fn add_body(&mut self, builder: RigidBody){
-        self.positions.push(builder.position);
-        self.orientations.push(builder.orientation);
-        self.velocities.push(builder.velocity);
-        self.forces.push(builder.force);
-        self.torques.push(builder.torque);
-        self.inv_mass.push(builder.inv_mass);
-        self.mass.push(builder.mass);
-        self.inertia.push(builder.inertia);
-        self.inv_inertia.push(builder.inv_inertia);
-        self.restitution.push(builder.restitution);
-        self.is_sleeping.push(false);
-        self.mesh.push(builder.mesh);
-        self.index.push(builder.index);
-        self.omega.push(builder.omega);
-        self.mass_center.push(Vec3::ZERO);
-        self.colliding.push(false);
+    pub fn omega(mut self, omega: Vec3) -> Self {
+        self.omega = omega;
+        self
     }
-    
+
+    pub fn sleeping(mut self, sleeping: bool) -> Self {
+        self._is_sleeping = sleeping;
+        self
+    }
+
+    pub fn from_set(set: RigidBodySet, i: usize) -> Self {
+        let body: RigidBody = Default::default();
+        body.inv_mass(set.get_inv_mass(i))
+            .mesh(set.get_mesh(i))
+            .index(set.get_index(i))
+            .force(set.forces[i])
+            .torque(set.torques[i])
+            .omega(set.omega[i])
+            .orientation(set.orientations[i])
+            .velocity(set.velocities[i])
+            .set_inertia(set.inertia[i])
+            .position(set.positions[i])
+            .restitution(set.restitution[i])
+            .sleeping(set.is_sleeping[i])
+    }
 }

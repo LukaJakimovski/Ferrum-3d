@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use ferrum_core::math::{Float, Vec3};
-use crate::physics_vertex::{Face, Polyhedron};
+use crate::polyhedron::{Face, Polyhedron};
 
 fn comp_projection_integrals(f: &Face, v: &Vec<Vec3>, A: usize, B: usize) ->
                                                     (Float, Float, Float, Float, Float, Float, Float, Float, Float, Float){

@@ -1,11 +1,12 @@
 use std::f32::consts::PI;
 use glam::{Quat, Vec3};
+use ferrum_core::math::Float;
 use ferrum_core::time::now;
 use crate::instance::Instance;
 use crate::State;
 
 impl State{
-    pub fn update(&mut self, mut dt: f64) {
+    pub fn update(&mut self, dt: f64) {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
@@ -38,10 +39,22 @@ impl State{
             self.timer.render_time_accumulator = 0.0;
         }
         self.timer.start_time = now();
-        for _i in 0..100 {
-            self.physics.physics_update(&mut dt);
-            self.timer.sim_time += dt;
-            dt = dt * 100.0;
+
+        use ferrum_physics::DeltaTimeMode as DT;
+
+        let p = &self.physics.parameters;
+        let (dt_mode, dt_mult, dt_const, substeps, running) =
+            (p.delta_time_mode, p.multiplier, p.delta_time, p.substeps, p.running);
+        let physics_dt = match dt_mode {
+            DT::RealTime => {dt}
+            DT::Multiplier => {dt * dt_mult}
+            DT::Constant => { dt_const },
+        } / substeps as Float;
+        for _i in 0..substeps {
+            if running {
+                self.physics.physics_update(physics_dt);
+            }
+            self.timer.sim_time += physics_dt;
         }
         self.timer.physics_time_accumulator += now() - self.timer.start_time;
         if self.timer.frame_count % 10 == 0 {

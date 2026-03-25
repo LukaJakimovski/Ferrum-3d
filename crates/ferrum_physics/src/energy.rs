@@ -1,5 +1,5 @@
 use ferrum_core::math::{Float, Mat3};
-use crate::rigidbody::RigidBodySet;
+use crate::rigidbody_set::RigidBodySet;
 
 #[derive(Default)]
 pub struct Energy {

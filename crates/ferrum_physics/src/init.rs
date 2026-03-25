@@ -1,7 +1,7 @@
 use ferrum_core::constants::Mesh;
 use ferrum_core::math::Vec3;
-use crate::rigidbody::RigidBody;
-use crate::update::Physics;
+use crate::rigidbody_set::RigidBody;
+use crate::{GravityMode, Physics};
 
 impl Physics {
     pub fn figure_eight(&mut self){
@@ -30,6 +30,10 @@ impl Physics {
         self.rigidbodies.add_body(body1);
         self.rigidbodies.add_body(body2);
         self.rigidbodies.add_body(body3);
+
+        self.parameters.gravity_constant = 0.25;
+        self.parameters.gravity_mode = GravityMode::Newtonian;
+        self.parameters.substeps = 100;
 
         self.energy.update_energy(&self.rigidbodies);
         self.energy.start_energy = self.energy.total_energy;

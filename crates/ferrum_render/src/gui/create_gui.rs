@@ -182,6 +182,14 @@ impl State {
                 ui.label(format!("{:.3}J", 0.5 * rigidbodies.get_mass(i) * rigidbodies.get_velocity(i).length_squared()));
                 ui.label("Rotational Energy");
                 ui.label(format!("{:.3}J", 0.5 * (rigidbodies.get_inertia(i) * rigidbodies.get_omega(i)).length_squared()));
+                ui.label("Colliding?");
+                let colliding;
+                if rigidbodies.colliding[i] {
+                    colliding = "True";
+                } else {
+                    colliding = "False";
+                }
+                ui.label(colliding);
             });
     }
 }

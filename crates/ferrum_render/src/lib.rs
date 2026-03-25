@@ -21,10 +21,10 @@ use camera::CameraUniform;
 use ferrum_core::math::{ToGlamQuat, ToGlamVec3};
 use ferrum_core::time::now;
 use crate::instance::{InstanceRaw, Instance};
-use ferrum_physics::rigidbody::RigidBodySet;
-use ferrum_physics::update::Physics;
+use ferrum_physics::rigidbody_set::RigidBodySet;
+use ferrum_physics::Physics;
 use ferrum_core::timing::Timing;
-use ferrum_physics::physics_vertex::{Polyhedron};
+use ferrum_physics::polyhedron::{Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
 use crate::render::create_render_pipeline;
 use crate::resources::load_polyhedron;
@@ -64,7 +64,7 @@ pub struct State {
     light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
     pub mouse_pressed: bool,
-    physics: Box<Physics>,
+    physics: Physics,
     pub egui_renderer: EguiRenderer,
     pub menus: [bool; 16],
     pub timer: Timing,
@@ -204,7 +204,7 @@ impl State {
         }
 
         let mut instances = vec![vec![]; OBJ_NAMES.len()];
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default() };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default(), parameters: Default::default() };
         let mut arrows: Vec<Arrow> = Default::default();
         physics.two_objects();
 
@@ -341,7 +341,7 @@ impl State {
             light_bind_group,
             light_render_pipeline,
             mouse_pressed: false,
-            physics: Box::new(physics),
+            physics,
             menus: [false; 16],
             timer: Timing { start_time: now(), ..Default::default()},
             is_pointer_used: false,

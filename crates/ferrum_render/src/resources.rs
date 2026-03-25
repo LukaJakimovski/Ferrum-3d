@@ -5,7 +5,7 @@ use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
 use ferrum_core::math;
 use ferrum_core::math::Float;
-use ferrum_physics::physics_vertex::{Face, Polyhedron};
+use ferrum_physics::polyhedron::{Face, Polyhedron};
 use crate::{model, texture};
 use crate::texture::Texture;
 

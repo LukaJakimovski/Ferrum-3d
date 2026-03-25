@@ -1,6 +1,6 @@
 use egui_wgpu::wgpu;
 use glam::{Mat3, Mat4, Quat, Vec3};
-use ferrum_physics::rigidbody::RigidBody;
+use ferrum_physics::rigidbody_set::RigidBody;
 use crate::{model, State};
 use wgpu::util::DeviceExt;
 use ferrum_core::math::{ToFloat, ToF32};
