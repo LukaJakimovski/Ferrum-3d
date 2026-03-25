@@ -50,10 +50,20 @@ You can also download the most recent precompiled binary for your platform in
 
 
 ## Attributions
-* [learn-wgpu](https://github.com/sotrh/learn-wgpu) by **sotrh**
+* [Hansen B. (2025)](https://github.com/sotrh/learn-wgpu)  
+  *learn-wgpu*  
+  GitHub
 
     For teaching me wgpu and being the reference for the wgpu code
 
-* [Fast and Accurate Computation of Polyhedral Mass Properties](https://www.cs.upc.edu/~virtual/SGI/docs/3.%20Further%20Reading/Fast%20and%20accurate%20computation%20of%20polyhedral%20mass%20properties.pdf) by **Brian Mirtich** 
-    
-    Which was my reference for calculating the center of mass, density, volume, and moment of inertia of rigid-bodies
+* [Mirtich, B. (1996)](https://www.cs.upc.edu/~virtual/SGI/docs/3.%20Further%20Reading/Fast%20and%20accurate%20computation%20of%20polyhedral%20mass%20properties.pdf).  
+  *Fast and Accurate Computation of Polyhedral Mass Properties*
+  Journal of Graphics Tools, 1(2), 31–50.
+
+  Which was my reference for calculating the center of mass, density, volume, and moment of inertia of rigid-bodies
+
+* [Wei, X., Liu, M., Ling, Z., & Su, H. (2022)](https://doi.org/10.1145/3528223.3530077).
+  *Approximate convex decomposition for 3D meshes with collision-aware concavity and tree search* 
+  ACM Transactions on Graphics, 41(4), 1–18.
+
+  Used for creating accurate collision meshes
