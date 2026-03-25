@@ -12,6 +12,7 @@ pub mod energy;
 mod init;
 pub mod gravity;
 pub mod collision;
+pub mod integration;
 
 pub struct Physics {
     pub rigidbodies: RigidBodySet,
