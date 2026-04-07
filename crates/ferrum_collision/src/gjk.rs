@@ -1,24 +1,33 @@
 
-use ferrum_core::math::{Float, Vec3};
+use ferrum_core::math::{Float, Quat, Vec3};
 
 /// Returns the point in `shape` that is furthest in direction `dir`.
-fn support(shape: &[Vec3], dir: Vec3) -> Vec3 {
+fn support(shape: &[Vec3], rot: Quat, dir: Vec3) -> Vec3 {
     shape
         .iter()
-        .copied()
+        .map(|&v| rot * v)
         .max_by(|a, b| {
             a.dot(dir)
                 .partial_cmp(&b.dot(dir))
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-        .expect("shape must not be empty")
+        .unwrap() // caller guarantees non-empty
 }
 
 /// Minkowski difference support: furthest point of (A – B) in direction `dir`.
-fn minkowski_support(a: &[Vec3], b: &[Vec3], dir: Vec3) -> Vec3 {
-    support(a, dir) - support(b, -dir)
+fn minkowski_support_rotated(
+    shape_a: &[Vec3],
+    rot_a: Quat,
+    shape_b: &[Vec3],
+    rot_b: Quat,
+    offset: Vec3, // pos_b - pos_a  (world space)
+    dir: Vec3,
+) -> Vec3 {
+    let sa = support(shape_a, rot_a, dir);
+    // For shape_b we search in -dir, then account for the translation offset
+    let sb = support(shape_b, rot_b, -dir) + offset;
+    sa - sb
 }
-
 
 #[derive(Clone, Debug)]
 struct Simplex {
@@ -185,33 +194,35 @@ fn tetrahedron_case(simplex: &mut Simplex) -> Option<Vec3> {
 
 
 /// Returns `true` if the two convex polygons (given as point clouds) intersect.
-pub fn gjk_intersects(shape_a: &[Vec3], shape_b: &[Vec3], offset: Vec3) -> bool {
-    assert!(!shape_a.is_empty(), "shape_a must not be empty");
-    assert!(!shape_b.is_empty(), "shape_b must not be empty");
+pub fn gjk_intersects(
+    shape_a: &[Vec3],
+    rot_a: Quat,
+    shape_b: &[Vec3],
+    rot_b: Quat,
+    offset: Vec3,
+) -> bool {
+    debug_assert!(!shape_a.is_empty());
+    debug_assert!(!shape_b.is_empty());
 
-    let shape_b: Vec<Vec3> = shape_b.iter()
-        .map(|x| x + offset)
-        .collect();
-    let shape_b = &*shape_b;
+    // Initial direction: difference of (rotated) centroids — usually a good start.
+    let centroid_a: Vec3 =
+        shape_a.iter().map(|&v| rot_a * v).sum::<Vec3>() / shape_a.len() as Float;
+    let centroid_b: Vec3 =
+        shape_b.iter().map(|&v| rot_b * v + offset).sum::<Vec3>() / shape_b.len() as Float;
 
-    // Initial search direction: difference of centroids
-    let centroid_a: Vec3 = shape_a.iter().copied().sum::<Vec3>() / shape_a.len() as Float;
-    let centroid_b: Vec3 = shape_b.iter().copied().sum::<Vec3>() / shape_b.len() as Float;
     let mut dir = centroid_a - centroid_b;
-
     if dir.length_squared() < 1e-10 {
         dir = Vec3::X;
     }
 
-    let first = minkowski_support(shape_a, shape_b, dir);
+    let first = minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, dir);
     let mut simplex = Simplex::new(first);
-    dir = -first; // search toward the origin
+    dir = -first;
 
     const MAX_ITER: usize = 64;
     for _ in 0..MAX_ITER {
-        let new_point = minkowski_support(shape_a, shape_b, dir);
+        let new_point = minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, dir);
 
-        // If the new point did not pass the origin, no intersection
         if new_point.dot(dir) < 0.0 {
             return false;
         }
@@ -219,10 +230,9 @@ pub fn gjk_intersects(shape_a: &[Vec3], shape_b: &[Vec3], offset: Vec3) -> bool 
         simplex.push(new_point);
 
         match do_simplex(&mut simplex) {
-            None => return true, // simplex contains origin
+            None => return true,
             Some(new_dir) => {
                 if new_dir.length_squared() < 1e-10 {
-                    // Direction collapsed – origin is on the boundary
                     return true;
                 }
                 dir = new_dir;

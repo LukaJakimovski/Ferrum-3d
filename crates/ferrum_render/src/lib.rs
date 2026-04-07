@@ -24,10 +24,10 @@ use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody_set::RigidBodySet;
 use ferrum_physics::Physics;
 use ferrum_core::timing::Timing;
-use ferrum_physics::polyhedron::{Polyhedron};
+use ferrum_physics::polyhedron::{CollisionMesh, Polyhedron};
 use crate::gui::egui_tools::EguiRenderer;
 use crate::render::create_render_pipeline;
-use crate::resources::load_polyhedron;
+use crate::resources::{load_polyhedron, load_collision_meshes};
 use crate::arrows::arrows::Arrow;
 
 #[repr(C)]
@@ -199,12 +199,14 @@ impl State {
         }
 
         let mut polyhedrons: Vec<Polyhedron> = Default::default();
+        let mut convex_polys: Vec<CollisionMesh> = Default::default();
         for name in OBJ_NAMES {
             polyhedrons.push(load_polyhedron(name));
+            convex_polys.push(load_collision_meshes(name));
         }
 
         let mut instances = vec![vec![]; OBJ_NAMES.len()];
-        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, energy: Default::default(), parameters: Default::default() };
+        let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, collision_meshes: convex_polys, energy: Default::default(), parameters: Default::default() };
         let mut arrows: Vec<Arrow> = Default::default();
         physics.two_objects();
 

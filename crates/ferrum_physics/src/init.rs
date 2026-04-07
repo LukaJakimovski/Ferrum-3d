@@ -45,8 +45,8 @@ impl Physics {
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
-            .mesh(Mesh::Icosahedron as usize)
-            .inertia(&self.polyhedrons[Mesh::Icosahedron as usize]);
+            .mesh(Mesh::Bunny as usize)
+            .inertia(&self.polyhedrons[Mesh::Bunny as usize]);
 
 
         let body2 = RigidBody::builder()
@@ -54,8 +54,8 @@ impl Physics {
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
-            .mesh(Mesh::Cylinder as usize)
-            .inertia(&self.polyhedrons[Mesh::Cylinder as usize]);
+            .mesh(Mesh::Monkey as usize)
+            .inertia(&self.polyhedrons[Mesh::Monkey as usize]);
 
         self.rigidbodies.add_body(body1);
         self.rigidbodies.add_body(body2);

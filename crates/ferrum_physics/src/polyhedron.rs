@@ -1,14 +1,18 @@
 use ferrum_core::math::{Float, Vec3};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub struct Face{
     pub norm: Vec3,
     pub w: Float,
     pub verts: Vec<usize>,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Polyhedron{
     pub faces: Vec<Face>,
     pub vert: Vec<Vec3>,
+}
+
+pub struct CollisionMesh{
+    pub vert: Vec<Vec<Vec3>>,
 }

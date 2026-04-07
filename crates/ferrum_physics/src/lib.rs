@@ -1,6 +1,6 @@
 use ferrum_core::math::{Float, Vec3};
 use crate::energy::Energy;
-use crate::polyhedron::Polyhedron;
+use crate::polyhedron::{CollisionMesh, Polyhedron};
 use crate::rigidbody_set::RigidBodySet;
 
 pub mod rigidbody_set;
@@ -18,6 +18,7 @@ pub struct Physics {
     pub rigidbodies: RigidBodySet,
     pub parameters: Params,
     pub polyhedrons: Vec<Polyhedron>,
+    pub collision_meshes: Vec<CollisionMesh>,
     pub energy: Energy
 }
 

@@ -5,7 +5,7 @@ use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
 use ferrum_core::math;
 use ferrum_core::math::Float;
-use ferrum_physics::polyhedron::{Face, Polyhedron};
+use ferrum_physics::polyhedron::{CollisionMesh, Face, Polyhedron};
 use crate::{model, texture};
 use crate::texture::Texture;
 
@@ -102,6 +102,44 @@ pub fn load_polyhedron(file_name: &str) -> Polyhedron {
         }
     }
     p
+}
+
+pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
+    let path = std::env::current_dir()
+        .expect("failed to get current dir")
+        .join("res")
+        .join("convex_meshes")
+        .join(file_name);
+
+    let contents = fs::read_to_string(path)
+        .expect("Could not read file");
+
+    let mut p: Vec<math::Vec3> = vec![];
+    let mut ps: CollisionMesh = CollisionMesh { vert: vec![]};
+
+
+    for line in contents.lines() {
+
+        if line.as_bytes()[0] == 'o' as u8 && !p.is_empty() {
+            ps.vert.push(p);
+            p = vec![];
+        } else if line.as_bytes()[0] == 'v' as u8 {
+            if line.as_bytes()[1] == ' ' as u8 {
+                let floats: Vec<Float> = line
+                    .split_whitespace()
+                    .skip(1)
+                    .map(|s| s.parse::<Float>().expect("Failed to parse float"))
+                    .collect();
+
+                p.push(math::Vec3::new(
+                    floats[0] as Float,
+                    floats[1] as Float,
+                    floats[2] as Float));
+
+            }
+        }
+    }
+    ps
 }
 
 pub async fn load_model(
