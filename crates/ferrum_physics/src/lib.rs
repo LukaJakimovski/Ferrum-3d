@@ -51,7 +51,7 @@ impl Default for Params {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
 enum GravityMode {
     #[default]
     Off = 0,

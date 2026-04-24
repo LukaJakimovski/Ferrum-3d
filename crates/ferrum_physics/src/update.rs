@@ -5,6 +5,6 @@ impl Physics{
         self.integrate_linear(dt);
         self.integrate_angular(dt);
         self.resolve_collisions();
-        self.energy.update_energy(&self.rigidbodies);
+        self.energy.update_energy(&self.rigidbodies, &self.parameters);
     }
 }

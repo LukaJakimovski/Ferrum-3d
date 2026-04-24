@@ -15,7 +15,7 @@ fn support(shape: &[Vec3], rot: Quat, dir: Vec3) -> Vec3 {
 }
 
 /// Minkowski difference support: furthest point of (A – B) in direction `dir`.
-fn minkowski_support_rotated(
+pub fn minkowski_support_rotated(
     shape_a: &[Vec3],
     rot_a: Quat,
     shape_b: &[Vec3],
@@ -30,20 +30,19 @@ fn minkowski_support_rotated(
 }
 
 #[derive(Clone, Debug)]
-struct Simplex {
-    points: [Vec3; 4],
-    size: usize,
+pub struct Simplex {
+    pub points: [Vec3; 4],
+    pub size: usize,
 }
-
 impl Simplex {
-    fn new(initial: Vec3) -> Self {
+    pub(crate) fn new(initial: Vec3) -> Self {
         Self {
             points: [initial, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
             size: 1,
         }
     }
 
-    fn push(&mut self, p: Vec3) {
+    pub(crate) fn push(&mut self, p: Vec3) {
         // Shift existing points up and put the newest point at index 0
         // (index 0 is always the point added most recently)
         self.points[3] = self.points[2];
@@ -63,7 +62,7 @@ impl Simplex {
 /// Updates the simplex so that it is the sub-simplex closest to the origin,
 /// and returns the next search direction.
 /// Returns `None` when the simplex already contains the origin.
-fn do_simplex(simplex: &mut Simplex) -> Option<Vec3> {
+pub fn do_simplex(simplex: &mut Simplex) -> Option<Vec3> {
     match simplex.size {
         2 => line_case(simplex),
         3 => triangle_case(simplex),

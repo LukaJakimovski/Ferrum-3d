@@ -1,4 +1,5 @@
 use ferrum_core::math::{Float, Mat3};
+use crate::{GravityMode, Params};
 use crate::rigidbody_set::RigidBodySet;
 
 #[derive(Default)]
@@ -12,10 +13,13 @@ pub struct Energy {
 
 
 impl Energy {
-    pub fn update_energy(&mut self, rigidbodies: &RigidBodySet) {
+    pub fn update_energy(&mut self, rigidbodies: &RigidBodySet, params: &Params) {
         self.update_kinetic_energy(rigidbodies);
         self.update_rotational_kinetic_energy(rigidbodies);
-        self.update_gravitational_potential_energy(rigidbodies);
+        if params.gravity_mode == GravityMode::Newtonian {
+            self.update_gravitational_potential_energy(rigidbodies);
+        }
+
         self.total_energy = self.kinetic_energy + self.gravitational_potential_energy + self.rotational_kinetic_energy;
     }
 
