@@ -29,15 +29,9 @@ impl State{
             bytemuck::cast_slice(&[self.light_uniform]),
         );
 
-        self.timer.runtime += dt;
         self.timer.dt = dt;
         self.timer.frame_count = self.timer.frame_count + 1;
         self.timer.render_time_accumulator += now() - self.timer.start_time;
-        if self.timer.frame_count % 10 == 0 {
-
-            self.timer.render_time = self.timer.render_time_accumulator * 0.1;
-            self.timer.render_time_accumulator = 0.0;
-        }
         self.timer.start_time = now();
 
         use ferrum_physics::DeltaTimeMode as DT;
@@ -45,25 +39,29 @@ impl State{
         let p = &self.physics.parameters;
         let (dt_mode, dt_mult, dt_const, substeps, running) =
             (p.delta_time_mode, p.multiplier, p.delta_time, p.substeps, p.running);
-        let physics_dt = match dt_mode {
-            DT::RealTime => {dt}
-            DT::Multiplier => {dt * dt_mult}
-            DT::Constant => { dt_const },
-        } / substeps as Float;
-        for _i in 0..substeps {
-            if running {
-                self.physics.physics_update(physics_dt);
+        if p.running {
+            self.timer.runtime += dt;
+            let physics_dt = match dt_mode {
+                DT::RealTime => {dt}
+                DT::Multiplier => {dt * dt_mult}
+                DT::Constant => { dt_const },
+            } / substeps as Float;
+            for _i in 0..substeps {
+                if running {
+                    self.physics.physics_update(physics_dt);
+                }
+                self.timer.sim_time += physics_dt;
             }
-            self.timer.sim_time += physics_dt;
+            self.timer.physics_time_accumulator += now() - self.timer.start_time;
         }
-        self.timer.physics_time_accumulator += now() - self.timer.start_time;
-        if self.timer.frame_count % 10 == 0 {
-            self.timer.fps = 10.0 / (self.timer.render_time_accumulator + self.timer.physics_time_accumulator);
-            self.timer.physics_time = self.timer.physics_time_accumulator * 0.1;
-            self.timer.physics_time_accumulator = 0.0;
-        }
-        self.timer.start_time = now();
-
+            if self.timer.frame_count % 10 == 0 {
+                self.timer.fps = 10.0 / (self.timer.render_time_accumulator + self.timer.physics_time_accumulator);
+                self.timer.physics_time = self.timer.physics_time_accumulator * 0.1;
+                self.timer.physics_time_accumulator = 0.0;
+                self.timer.render_time = self.timer.render_time_accumulator * 0.1;
+                self.timer.render_time_accumulator = 0.0;
+            }
+            self.timer.start_time = now();
         self.update_instances();
         for arrow in self.arrows.iter_mut() {
             arrow.update_orientation();

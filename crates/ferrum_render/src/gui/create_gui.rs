@@ -1,5 +1,8 @@
-use egui::Align2;
+use egui::{Align2, Context};
 use egui_wgpu::{wgpu, ScreenDescriptor};
+use ferrum_core::timing::Timing;
+use ferrum_physics::{DeltaTimeMode, GravityMode, Params};
+use ferrum_physics::rigidbody_set::RigidBodySet;
 use crate::State;
 
 #[repr(usize)]
@@ -8,6 +11,7 @@ pub enum Menu {
     Properties = 0,
     Timer = 1,
     Energy = 2,
+    Gravity = 3,
 }
 
 impl State {
@@ -31,17 +35,21 @@ impl State {
                 ui.checkbox(&mut menus[Menu::Energy as usize], "Energy Info", );
                 ui.checkbox(&mut menus[Menu::Timer as usize], "Timing Info", );
                 ui.checkbox(&mut menus[Menu::Properties as usize], "Properties", );
+                ui.checkbox(&mut menus[Menu::Gravity as usize], "Gravity", );
             });
         let menus = &self.menus;
-
+        let renderer = self.egui_renderer.context();
         if menus[Menu::Energy as usize] {
             self.energy_menu();
         }
         if menus[Menu::Timer as usize] {
-            self.timing_menu();
+            Self::timing_menu(renderer, &mut self.physics.parameters, &self.timer);
         }
         if menus[Menu::Properties as usize] {
-            self.properties_menu();
+            Self::properties_menu(renderer, &mut self.physics.rigidbodies, &mut self.selected_index);
+        }
+        if menus[Menu::Gravity as usize] {
+            Self::gravity_menu(renderer,  &mut self.physics.parameters);
         }
 
         if !self.mouse_pressed {
@@ -56,6 +64,54 @@ impl State {
             screen_descriptor,
         );
     }
+    fn gravity_menu(renderer: &Context, parameters: &mut Params) {
+        egui::Window::new("Gravity")
+            .resizable(false)
+            .vscroll(true)
+            .default_open(true)
+            .max_height(200.0)
+            .max_width(300.0)
+            .title_bar(false)
+            .show(renderer, |ui| {
+                ui.heading("Gravity");
+                egui::ComboBox::from_label("Gravity Mode")
+                    .selected_text(format!("{:?}", parameters.gravity_mode))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut parameters.gravity_mode,
+                            GravityMode::Off,
+                            "Off",
+                        );
+                        ui.selectable_value(
+                            &mut parameters.gravity_mode,
+                            GravityMode::Newtonian,
+                            "Newtonian",
+                        );
+                        ui.selectable_value(
+                            &mut parameters.gravity_mode,
+                            GravityMode::Uniform,
+                            "Uniform",
+                        );
+                    });
+                match parameters.gravity_mode {
+                    GravityMode::Uniform => {
+                        ui.label("Gravity Force");
+                        ui.columns(3, |ui| {
+                            ui[0].add(egui::DragValue::new(&mut parameters.uniform_gravity.x).speed(0.01));
+                            ui[1].add(egui::DragValue::new(&mut parameters.uniform_gravity.y).speed(0.01));
+                            ui[2].add(egui::DragValue::new(&mut parameters.uniform_gravity.z).speed(0.01));
+                        });
+                    }
+                    GravityMode::Newtonian => {
+                        ui.label("Gravitational Constant");
+                        ui.add(egui::DragValue::new(&mut parameters.gravity_constant).speed(0.01));
+
+                    }
+                    GravityMode::Off => {}
+                }
+            });
+    }
+
 
     fn energy_menu(&self) {
         let renderer = self.egui_renderer.context();
@@ -77,9 +133,7 @@ impl State {
             });
     }
 
-    fn timing_menu(&self) {
-        let renderer = self.egui_renderer.context();
-        let timer = &self.timer;
+    fn timing_menu(renderer: &Context, parameters: &mut Params, timer: &Timing) {
         egui::Window::new("Timer")
             .resizable(false)
             .vscroll(true)
@@ -89,6 +143,44 @@ impl State {
             .title_bar(false)
             .show(renderer, |ui| {
                 ui.heading("Timer");
+                ui.checkbox(&mut parameters.running, "Running");
+                egui::ComboBox::from_label("Delta Time Mode")
+                    .selected_text(format!("{:?}", parameters.delta_time_mode))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut parameters.delta_time_mode,
+                            DeltaTimeMode::RealTime,
+                            "Real Time",
+                        );
+                        ui.selectable_value(
+                            &mut parameters.delta_time_mode,
+                            DeltaTimeMode::Multiplier,
+                            "Multiplier",
+                        );
+                        ui.selectable_value(
+                            &mut parameters.delta_time_mode,
+                            DeltaTimeMode::Constant,
+                            "Constant",
+                        );
+                    });
+
+                match parameters.delta_time_mode {
+                    DeltaTimeMode::RealTime => {}
+                    DeltaTimeMode::Constant => {
+                        ui.columns(2, |ui| {
+                            ui[0].label("Delta Time: ");
+                            ui[1].add(egui::DragValue::new(&mut parameters.delta_time).speed(0.01));
+                        });
+                    }
+                    DeltaTimeMode::Multiplier => {
+                        ui.columns(2, |ui| {
+                            ui[0].label("Delta Time Multiplier: ");
+                            ui[1].add(egui::DragValue::new(&mut parameters.multiplier).speed(0.01));
+                        });
+                    }
+                }
+
+
                 ui.label(format!("Runtime: {:.3}s", timer.runtime));
                 ui.label(format!("Sim Time: {:.3}s", timer.sim_time));
                 ui.label(format!("Ratio: {:.2}x", timer.sim_time / timer.runtime));
@@ -100,10 +192,7 @@ impl State {
             });
     }
 
-    fn properties_menu(&mut self){
-        let renderer = self.egui_renderer.context();
-        let rigidbodies = &mut self.physics.rigidbodies;
-        let i = &mut self.selected_index;
+    fn properties_menu(renderer: &Context, rigidbodies: &mut RigidBodySet, i: &mut usize) {
         egui::Window::new("Properties")
             .resizable(false)
             .vscroll(true)

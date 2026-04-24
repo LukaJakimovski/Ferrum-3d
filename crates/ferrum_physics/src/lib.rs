@@ -23,9 +23,9 @@ pub struct Physics {
 }
 
 pub struct Params {
-    gravity_mode: GravityMode,
-    gravity_constant: Float,
-    uniform_gravity: Vec3,
+    pub gravity_mode: GravityMode,
+    pub gravity_constant: Float,
+    pub uniform_gravity: Vec3,
 
     pub delta_time_mode: DeltaTimeMode,
     pub multiplier: Float,
@@ -52,14 +52,14 @@ impl Default for Params {
 }
 
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
-enum GravityMode {
+pub enum GravityMode {
     #[default]
     Off = 0,
     Uniform = 1,
     Newtonian = 2,
 }
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
 pub enum DeltaTimeMode {
     #[default]
     RealTime = 0,

@@ -35,7 +35,7 @@ impl Physics {
         self.parameters.gravity_mode = GravityMode::Newtonian;
         self.parameters.substeps = 100;
 
-        self.energy.update_energy(&self.rigidbodies);
+        self.energy.update_energy(&self.rigidbodies, &self.parameters);
         self.energy.start_energy = self.energy.total_energy;
     }
 
@@ -60,7 +60,7 @@ impl Physics {
         self.rigidbodies.add_body(body1);
         self.rigidbodies.add_body(body2);
 
-        self.energy.update_energy(&self.rigidbodies);
+        self.energy.update_energy(&self.rigidbodies, &self.parameters);
         self.energy.start_energy = self.energy.total_energy;
     }
 }
