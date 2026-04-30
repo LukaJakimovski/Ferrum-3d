@@ -16,11 +16,13 @@ pub struct RigidBody {
     pub(crate) inertia: Mat3,    // warm
     pub(crate) restitution: Float,     // cold - only on collision
     pub(crate) _is_sleeping: bool,    // cold
+    pub(crate) gravity_mult: Float,
     pub(crate) index: usize,
     pub(crate) omega: Vec3,
     pub(crate) mass: Float,
     pub(crate) scale: Vec3,
-    pub inv_inertia: Mat3
+    pub inv_inertia: Mat3,
+    pub friction: Float,
 }
 
 impl RigidBody {
@@ -34,12 +36,14 @@ impl RigidBody {
         body.inv_mass = 0.0;
         body.inertia = Mat3::ZERO;
         body.inv_inertia = Mat3::ZERO;
+        body.gravity_mult = 1.0;
         body.torque = Vec3::ZERO;
         body.restitution = 0.0;
         body._is_sleeping = false;
         body.mesh = 0;
         body.index = 0;
         body.mass = 0.0;
+        body.friction = 0.3;
         body
     }
     #[allow(unused)]
@@ -47,6 +51,18 @@ impl RigidBody {
         self.position = position;
         self
     }
+
+    pub(crate) fn friction(mut self, friction: Float) -> Self {
+        self.friction = friction;
+        self
+    }
+    
+    #[allow(unused)]
+    pub fn gravity_mult(mut self, gravity_mult: Float) -> Self {
+        self.gravity_mult = gravity_mult;
+        self
+    }
+    
     #[allow(unused)]
     pub fn velocity(mut self, velocity: Vec3) -> Self {
         self.velocity = velocity;
@@ -68,7 +84,7 @@ impl RigidBody {
         self
     }
     #[allow(unused)]
-    fn inv_mass(mut self, inv_mass: Float) -> Self {
+    pub(crate) fn inv_mass(mut self, inv_mass: Float) -> Self {
         self.inv_mass = inv_mass;
         self.mass = 1.0 / inv_mass;
         self

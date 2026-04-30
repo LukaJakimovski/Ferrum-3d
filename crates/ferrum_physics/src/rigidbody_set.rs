@@ -8,7 +8,7 @@ pub struct RigidBodySet {
     pub positions:           Vec<Vec3>,   // hot  - read every frame
     pub velocities:          Vec<Vec3>,   // hot  - read every frame
     pub omega:               Vec<Vec3>,
-    pub(crate) orientations: Vec<Quat>,   // hot  - read every frame
+    pub orientations: Vec<Quat>,   // hot  - read every frame
     pub(crate) mesh:         Vec<usize>,  // hot  - read every frame
     pub(crate) forces:       Vec<Vec3>,   // hot  - written every frame
     pub(crate) torques:      Vec<Vec3>,
@@ -18,9 +18,11 @@ pub struct RigidBodySet {
     pub(crate) inv_inertia:  Vec<Mat3>,
     pub(crate) restitution:  Vec<Float>,  // cold - only on collision
     pub(crate) is_sleeping:  Vec<bool>,   // cold
+    pub(crate) gravity_mult: Vec<Float>,
     pub colliding:    Vec<bool>,
     pub index:               Vec<usize>,
     pub mass_center:         Vec<Vec3>,
+    pub friction:            Vec<Float>
 }
 
 impl RigidBodySet {
@@ -57,7 +59,9 @@ impl RigidBodySet {
     pub fn get_inv_inertia(&self, body_id: usize) -> Mat3 { self.inv_inertia[body_id] }
     pub fn get_restitution(&self, body_id: usize) -> Float { self.restitution[body_id] }
     pub fn get_index(&self, body_id: usize) -> usize { self.index[body_id] }
-    
+    pub fn get_mass_center(&self, body_id: usize) -> Vec3 { self.mass_center[body_id] }
+    pub fn get_friction(&self, body_id: usize) -> Float { self.friction[body_id] }
+    pub fn get_gravity_mult(&self, body_id: usize) -> Float { self.gravity_mult[body_id]}
 
     pub fn comp_inertia_tensor(&mut self, body_id: usize, polyhedron: &Polyhedron){
         #[allow(non_snake_case)]
@@ -109,12 +113,14 @@ impl RigidBodySet {
             inv_inertia:    vec![Mat3::ZERO; num_bodies],
             inertia:        vec![Mat3::ZERO; num_bodies],
             restitution:    vec![0.0; num_bodies],
+            friction:       vec![0.3; num_bodies],
             is_sleeping:    vec![false; num_bodies],
             mesh:           vec![0; num_bodies],
             index:          vec![0; num_bodies],
             omega:          vec![Vec3::ZERO; num_bodies],
             mass_center:    vec![Vec3::ZERO; num_bodies],
             colliding:      vec![false; num_bodies],
+            gravity_mult:   vec![1.0; num_bodies],
         }
     }
     
@@ -130,6 +136,7 @@ impl RigidBodySet {
         self.inv_mass.push(0.0);
         self.mass.push(0.0);
         self.inertia.push(Mat3::ZERO);
+        self.friction.push(0.3);
         self.inv_inertia.push(Mat3::ZERO);
         self.restitution.push(0.0);
         self.is_sleeping.push(false);
@@ -138,6 +145,7 @@ impl RigidBodySet {
         self.omega.push(Vec3::ZERO);
         self.mass_center.push(Vec3::ZERO);
         self.colliding.push(false);
+        self.gravity_mult.push(1.0);
     }
     
     pub fn add_body(&mut self, builder: RigidBody){
@@ -151,12 +159,14 @@ impl RigidBodySet {
         self.inertia.push(builder.inertia);
         self.inv_inertia.push(builder.inv_inertia);
         self.restitution.push(builder.restitution);
+        self.friction.push(builder.friction);
         self.is_sleeping.push(false);
         self.mesh.push(builder.mesh);
         self.index.push(builder.index);
         self.omega.push(builder.omega);
         self.mass_center.push(Vec3::ZERO);
         self.colliding.push(false);
+        self.gravity_mult.push(builder.gravity_mult);
     }
     
 }

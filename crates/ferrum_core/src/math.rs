@@ -10,6 +10,9 @@ pub use glam::{Vec2, Vec3, Vec4, Mat2, Mat3, Mat4, Quat};
 #[cfg(not(feature = "f64"))]
 pub type Float = f32;
 
+pub fn lerp(a: Float, b: Float, t: Float) -> Float {
+    a + (b - a) * t
+}
 
 pub trait ToF32 {
     type Output;

@@ -1,5 +1,5 @@
 use ferrum_core::constants::Mesh;
-use ferrum_core::math::{Quat, Vec3};
+use ferrum_core::math::{Float, Quat, Vec3};
 use crate::rigidbody_set::RigidBody;
 use crate::{GravityMode, Physics};
 
@@ -72,6 +72,7 @@ impl Physics {
             .omega(Vec3::X * 1.0)
             .mass(1.0)
             .restitution(0.3)
+            .friction(0.7)
             .mesh(Mesh::Icosahedron as usize)
             .inertia(&self.polyhedrons[Mesh::Icosahedron as usize]);
 
@@ -82,15 +83,18 @@ impl Physics {
             .omega(Vec3::X * 1.0)
             .mass(1.0)
             .restitution(0.3)
+            .friction(0.7)
             .mesh(Mesh::Torus as usize)
             .inertia(&self.polyhedrons[Mesh::Torus as usize]);
 
         let body3 = RigidBody::builder()
             .position(Vec3::new(0.0, -10.0, 0.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
-            .mass(10000000.0)
+            .mass((f32::MAX as f64 * 100000000000000000.0) as Float)
             .restitution(0.3)
-            .orientation(Quat::from_axis_angle(Vec3::X, 0.5))
+            .friction(0.7)
+            .orientation(Quat::from_axis_angle(Vec3::X, 0.0))
+            .gravity_mult(0.0)
             .mesh(Mesh::Plane as usize)
             .inertia(&self.polyhedrons[Mesh::Plane as usize]);
 

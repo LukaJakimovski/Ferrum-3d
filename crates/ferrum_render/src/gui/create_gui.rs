@@ -212,9 +212,9 @@ impl State {
                 let i = *i;
                 ui.label("Position");
                 ui.columns(3, |ui| {
-                    ui[0].label(format!("{:.3}m", rigidbodies.positions[i].x));
-                    ui[1].label(format!("{:.3}m", rigidbodies.positions[i].y));
-                    ui[2].label(format!("{:.3}m", rigidbodies.positions[i].z));
+                    ui[0].add(egui::DragValue::new(&mut rigidbodies.positions[i].x).speed(0.01));
+                    ui[1].add(egui::DragValue::new(&mut rigidbodies.positions[i].y).speed(0.01));
+                    ui[2].add(egui::DragValue::new(&mut rigidbodies.positions[i].z).speed(0.01));
                 });
                 ui.label(format!("Velocity {:.3}m/s", rigidbodies.velocities[i].length()));
                 ui.columns(3, |ui| {
@@ -233,16 +233,16 @@ impl State {
 
                 ui.label("Orientation");
                 ui.columns(4, |ui| {
-                    ui[0].label(format!("{:.3}", rigidbodies.get_orientation(i).x));
-                    ui[1].label(format!("{:.3}x", rigidbodies.get_orientation(i).y));
-                    ui[2].label(format!("{:.3}y", rigidbodies.get_orientation(i).z));
-                    ui[3].label(format!("{:.3}z", rigidbodies.get_orientation(i).w));
+                    ui[0].add(egui::DragValue::new(&mut rigidbodies.orientations[i].x).speed(0.01));
+                    ui[1].add(egui::DragValue::new(&mut rigidbodies.orientations[i].y).speed(0.01));
+                    ui[2].add(egui::DragValue::new(&mut rigidbodies.orientations[i].z).speed(0.01));
+                    ui[3].add(egui::DragValue::new(&mut rigidbodies.orientations[i].w).speed(0.01));
                 });
                 ui.label("Angular Velocity");
                 ui.columns(4, |ui| {
-                    ui[0].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).x));
-                    ui[1].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).y));
-                    ui[2].label(format!("{:.3}rad/s", rigidbodies.get_omega(i).z));
+                    ui[0].add(egui::DragValue::new(&mut rigidbodies.omega[i].x).speed(0.01));
+                    ui[1].add(egui::DragValue::new(&mut rigidbodies.omega[i].y).speed(0.01));
+                    ui[2].add(egui::DragValue::new(&mut rigidbodies.omega[i].z).speed(0.01));
                 });
                 ui.label(format!("Torque {:.3}Nm", rigidbodies.get_torques(i).length()));
                 ui.columns(3, |ui| {
