@@ -208,7 +208,7 @@ impl State {
         let mut instances = vec![vec![]; OBJ_NAMES.len()];
         let mut physics: Physics = Physics { rigidbodies: RigidBodySet::new(0), polyhedrons, collision_meshes: convex_polys, energy: Default::default(), parameters: Default::default() };
         let mut arrows: Vec<Arrow> = Default::default();
-        physics.two_objects();
+        physics.flat_plane();
 
         for i in 0..physics.rigidbodies.len() {
             let mesh = physics.rigidbodies.get_mesh(i);

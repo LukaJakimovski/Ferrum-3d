@@ -19,6 +19,7 @@ pub struct RigidBody {
     pub(crate) index: usize,
     pub(crate) omega: Vec3,
     pub(crate) mass: Float,
+    pub(crate) scale: Vec3,
     pub inv_inertia: Mat3
 }
 

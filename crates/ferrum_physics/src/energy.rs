@@ -17,7 +17,7 @@ impl Energy {
         self.update_kinetic_energy(rigidbodies);
         self.update_rotational_kinetic_energy(rigidbodies);
         if params.gravity_mode == GravityMode::Newtonian {
-            self.update_gravitational_potential_energy(rigidbodies);
+            self.update_gravitational_potential_energy(rigidbodies, params.gravity_constant);
         }
 
         self.total_energy = self.kinetic_energy + self.gravitational_potential_energy + self.rotational_kinetic_energy;
@@ -40,13 +40,13 @@ impl Energy {
         }
     }
 
-    fn update_gravitational_potential_energy(&mut self, rigidbodies: &RigidBodySet) {
+    fn update_gravitational_potential_energy(&mut self, rigidbodies: &RigidBodySet, g_constant: Float) {
         self.gravitational_potential_energy = 0.0;
         for i in 0..rigidbodies.len() {
             for j in (i + 1)..rigidbodies.len() {
                 let r = rigidbodies.positions[j] - rigidbodies.positions[i];
                 let distance = r.length();
-                self.gravitational_potential_energy = self.gravitational_potential_energy - 0.5 * rigidbodies.mass[i] * rigidbodies.mass[j] / distance;
+                self.gravitational_potential_energy = self.gravitational_potential_energy - g_constant * rigidbodies.mass[i] * rigidbodies.mass[j] / distance;
             }
         }
     }

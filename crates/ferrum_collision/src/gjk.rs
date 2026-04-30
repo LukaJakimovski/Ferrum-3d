@@ -1,17 +1,19 @@
 
-use ferrum_core::math::{Float, Quat, Vec3};
+use ferrum_core::math::{Quat, Vec3};
 
 /// Returns the point in `shape` that is furthest in direction `dir`.
 fn support(shape: &[Vec3], rot: Quat, dir: Vec3) -> Vec3 {
+    debug_assert!(dir.length_squared() > 1e-10, "support called with ~zero dir");
+
     shape
         .iter()
         .map(|&v| rot * v)
         .max_by(|a, b| {
             a.dot(dir)
                 .partial_cmp(&b.dot(dir))
-                .unwrap_or(std::cmp::Ordering::Equal)
+                .unwrap_or(std::cmp::Ordering::Less) // NaN sorts to the bottom
         })
-        .unwrap() // caller guarantees non-empty
+        .unwrap()
 }
 
 /// Minkowski difference support: furthest point of (A – B) in direction `dir`.
@@ -189,54 +191,4 @@ fn tetrahedron_case(simplex: &mut Simplex) -> Option<Vec3> {
 
     // Origin is inside the tetrahedron – intersection!
     None
-}
-
-
-/// Returns `true` if the two convex polygons (given as point clouds) intersect.
-pub fn gjk_intersects(
-    shape_a: &[Vec3],
-    rot_a: Quat,
-    shape_b: &[Vec3],
-    rot_b: Quat,
-    offset: Vec3,
-) -> bool {
-    debug_assert!(!shape_a.is_empty());
-    debug_assert!(!shape_b.is_empty());
-
-    // Initial direction: difference of (rotated) centroids — usually a good start.
-    let centroid_a: Vec3 =
-        shape_a.iter().map(|&v| rot_a * v).sum::<Vec3>() / shape_a.len() as Float;
-    let centroid_b: Vec3 =
-        shape_b.iter().map(|&v| rot_b * v + offset).sum::<Vec3>() / shape_b.len() as Float;
-
-    let mut dir = centroid_a - centroid_b;
-    if dir.length_squared() < 1e-10 {
-        dir = Vec3::X;
-    }
-
-    let first = minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, dir);
-    let mut simplex = Simplex::new(first);
-    dir = -first;
-
-    const MAX_ITER: usize = 64;
-    for _ in 0..MAX_ITER {
-        let new_point = minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, dir);
-
-        if new_point.dot(dir) < 0.0 {
-            return false;
-        }
-
-        simplex.push(new_point);
-
-        match do_simplex(&mut simplex) {
-            None => return true,
-            Some(new_dir) => {
-                if new_dir.length_squared() < 1e-10 {
-                    return true;
-                }
-                dir = new_dir;
-            }
-        }
-    }
-    false
 }

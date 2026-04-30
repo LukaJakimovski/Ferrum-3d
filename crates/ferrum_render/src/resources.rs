@@ -139,6 +139,7 @@ pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
             }
         }
     }
+    ps.vert.push(p);
     ps
 }
 

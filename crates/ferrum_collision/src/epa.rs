@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use ferrum_core::math::{Float, Quat, Vec3};
 use crate::gjk::{do_simplex, minkowski_support_rotated, Simplex};
 
@@ -15,23 +16,29 @@ struct EpaFace {
 
 impl EpaFace {
     fn new(verts: [usize; 3], points: &[Vec3]) -> Option<Self> {
-        let [a, b, c] = verts.map(|i| points[i]);
-        let ab = b - a;
-        let ac = c - a;
-        let cross = ab.cross(ac);
+        let a = points[verts[0]];
+        let b = points[verts[1]];
+        let c = points[verts[2]];
+
+        let cross = (b - a).cross(c - a);
         let len = cross.length();
+
+        // Reject degenerate (zero-area) faces
         if len < 1e-10 {
-            return None; 
+            return None;
         }
+
         let normal = cross / len;
-        let dist = normal.dot(a);
-        if dist < 0.0 {
-            return Some(Self {
-                verts: [verts[0], verts[2], verts[1]],
-                normal: -normal,
-                dist: -dist,
-            });
-        }
+
+        // Ensure the normal points away from the origin.
+        // All EPA faces must satisfy this invariant or the visibility
+        // test in the main loop produces wrong results over time.
+        let (normal, dist) = if normal.dot(a) >= 0.0 {
+            (normal, normal.dot(a))
+        } else {
+            (-normal, (-normal).dot(a))
+        };
+
         Some(Self { verts, normal, dist })
     }
 }
@@ -105,38 +112,36 @@ pub fn epa(
 
     for _ in 0..EPA_MAX_ITER {
         // Find the face closest to the origin
-        let (_closest_idx, closest) = faces
+        let closest = faces
             .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| {
-                a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal)
-            })?;
+            .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Less))?
+            .clone();
 
-        let normal = closest.normal;
-        let dist = closest.dist;
+        // Find the support point along the closest face's normal
+        let support =
+            minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, closest.normal);
+        let new_dist = support.dot(closest.normal);
 
-        // Find the support point in the closest face's normal direction
-        let support = minkowski_support_rotated(shape_a, rot_a, shape_b, rot_b, offset, normal);
-
-        // Check convergence
-        let new_dist = support.dot(normal);
-        if new_dist - dist < EPA_TOLERANCE {
-            return Some(Contact { normal, depth: dist });
+        // Converged: the new support point is not meaningfully further than the face
+        if new_dist - closest.dist < EPA_TOLERANCE {
+            return Some(Contact {
+                normal: closest.normal,
+                depth: closest.dist,
+            });
         }
 
-        // Expand the polytope
+        // Partition faces into those visible from the support point (to be removed)
+        // and those that are not (to be kept).
         let support_idx = points.len();
         points.push(support);
 
-        let mut horizon: Vec<Edge> = Vec::new();
-        let mut new_faces: Vec<EpaFace> = Vec::new();
-
-        let mut kept_faces: Vec<EpaFace> = Vec::new();
         let mut visible_edges: Vec<Edge> = Vec::new();
+        let mut kept_faces: Vec<EpaFace> = Vec::new();
 
         for face in faces.drain(..) {
-            let dot = face.normal.dot(support - points[face.verts[0]]);
-            if dot > 0.0 {
+            let to_support = support - points[face.verts[0]];
+            if face.normal.dot(to_support) > 0.0 {
+                // Face is visible from support point — collect its edges
                 visible_edges.push(Edge(face.verts[0], face.verts[1]));
                 visible_edges.push(Edge(face.verts[1], face.verts[2]));
                 visible_edges.push(Edge(face.verts[2], face.verts[0]));
@@ -145,30 +150,52 @@ pub fn epa(
             }
         }
 
-        for &edge in &visible_edges {
-            if !visible_edges.contains(&edge.reversed()) {
-                horizon.push(edge);
-            }
+        if visible_edges.is_empty() {
+            // Support point didn't expand any face — polytope is degenerate
+            return None;
         }
 
-        for edge in &horizon {
-            if let Some(face) = EpaFace::new([edge.0, edge.1, support_idx], &points) {
-                new_faces.push(face);
-            }
+        // Build the horizon: edges that appear exactly once across all visible
+        // faces. Edges shared by two visible faces are interior and are removed.
+        // Uses a canonical key (lo, hi) so (a,b) and (b,a) map to the same slot.
+        let mut edge_counts: HashMap<(usize, usize), usize> = HashMap::new();
+        for &Edge(a, b) in &visible_edges {
+            let key = if a < b { (a, b) } else { (b, a) };
+            *edge_counts.entry(key).or_insert(0) += 1;
         }
+        let horizon: Vec<Edge> = visible_edges
+            .iter()
+            .copied()
+            .filter(|&Edge(a, b)| {
+                let key = if a < b { (a, b) } else { (b, a) };
+                edge_counts[&key] == 1
+            })
+            .collect();
+
+        if horizon.is_empty() {
+            // No boundary edges found — polytope has become degenerate
+            return None;
+        }
+
+        // Stitch new faces from the horizon edges to the support point
+        let new_faces: Vec<EpaFace> = horizon
+            .iter()
+            .filter_map(|edge| EpaFace::new([edge.0, edge.1, support_idx], &points))
+            .collect();
 
         if new_faces.is_empty() {
-            return Some(Contact { normal, depth: dist });
+            // All candidate faces were degenerate (zero area) — bail out
+            return None;
         }
 
         faces = kept_faces;
         faces.extend(new_faces);
     }
 
+    // Iteration limit hit — return the best face found so far
     let closest = faces
         .iter()
-        .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Equal))?;
-
+        .min_by(|a, b| a.dist.partial_cmp(&b.dist).unwrap_or(std::cmp::Ordering::Less))?;
     Some(Contact {
         normal: closest.normal,
         depth: closest.dist,
