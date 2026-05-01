@@ -67,7 +67,7 @@ impl Physics {
 
     pub fn flat_plane(&mut self){
         let body1 = RigidBody::builder()
-            .position(Vec3::new(-110.0, 0.0, 5.0))
+            .position(Vec3::new(-110.0, 0.0, -5.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
