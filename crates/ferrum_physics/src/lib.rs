@@ -1,6 +1,7 @@
 use ferrum_core::math::{Float, Vec3};
 use crate::energy::Energy;
-use crate::polyhedron::{CollisionMesh, Polyhedron};
+use crate::polyhedron::Polyhedron;
+use ferrum_collision::collision_mesh::CollisionMesh;
 use crate::rigidbody_set::RigidBodySet;
 
 pub mod rigidbody_set;

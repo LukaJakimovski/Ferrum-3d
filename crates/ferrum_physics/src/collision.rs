@@ -14,7 +14,8 @@ impl Physics {
         }
 
         for i in 0..n {
-            for j in (i + 1)..n {
+            for j in (i+1)..n {
+                if i == j {continue;}
                 let mesh_a = self.rigidbodies.mesh[i];
                 let mesh_b = self.rigidbodies.mesh[j];
                 let shapes_a = &self.collision_meshes[mesh_a];
@@ -36,28 +37,30 @@ impl Physics {
 
                 let mut deepest: Option<(Contact, Vec<ContactPoint>)> = None;
 
-                for sub_a in shapes_a.vert.iter() {
-                    for sub_b in shapes_b.vert.iter() {
+                for sub_a in shapes_a.shapes.iter() {
+                    for sub_b in shapes_b.shapes.iter() {
                         let aabb_a =
-                            Aabb::from_shapes(sub_a).transformed(rot_a, Vec3::ZERO);
+                            Aabb::from_shapes(&sub_a.verts).transformed(rot_a, Vec3::ZERO);
                         let aabb_b =
-                            Aabb::from_shapes(sub_b).transformed(rot_b, offset);
+                            Aabb::from_shapes(&sub_b.verts).transformed(rot_b, offset);
                         if !aabb_a.intersects(&aabb_b) {
                             continue;
                         }
                         if let GjkResult::Intersecting(contact) =
-                            gjk_epa(sub_a, rot_a, sub_b, rot_b, offset)
+                            gjk_epa(&*sub_a.verts, rot_a, &sub_b.verts, rot_b, offset)
                         {
                             let is_deeper = deepest
                                 .as_ref()
                                 .map_or(true, |(d, _)| contact.depth > d.depth);
 
                             if is_deeper {
+                                // In resolve_collisions, pass positions relative to A
                                 let manifold = find_contact_manifold(
                                     sub_a, rot_a, pos_a,
                                     sub_b, rot_b, pos_b,
                                     contact.normal,
                                 );
+
                                 deepest = Some((contact, manifold));
                             }
                         }
@@ -131,7 +134,7 @@ impl Physics {
             println!("vn: {:?}", vn);
             println!("normal: {:?}", n);
             println!("tangent_vel: {:?}", rel_vel - n * vn);
-            
+
             // Only resolve if bodies are approaching.
             if vn >= 0.0 {
                 continue;
@@ -151,6 +154,7 @@ impl Physics {
             // Zero restitution for slow contacts — prevents gravity accumulation
             // bouncing. Threshold: one frame of freefall.
             let e_actual = if vn.abs() < 2.0 * 9.81 * dt { 0.0 } else { e };
+
             let j_n = -(1.0 + e_actual) * vn / inv_mass_eff * weight;
 
             let impulse_n = n * j_n;
@@ -158,6 +162,19 @@ impl Physics {
             bodies.velocities[j] += impulse_n * m2;
             bodies.omega[i] -= inv_i_i * r_i.cross(impulse_n);
             bodies.omega[j] += inv_i_j * r_j.cross(impulse_n);
+
+            // After applying normal impulse, zero out any remaining normal velocity
+            // for slow contacts — prevents gravity from pumping energy over many frames
+            if e_actual == 0.0 {
+                let v_i_after = bodies.velocities[i];
+                let v_j_after = bodies.velocities[j];
+                let vn_after = (v_j_after - v_i_after).dot(n);
+                if vn_after < 0.0 {
+                    let cancel = n * vn_after / (m1 + m2).max(1e-10);
+                    bodies.velocities[i] += cancel * m1;
+                    bodies.velocities[j] -= cancel * m2;
+                }
+            }
 
             // --- Friction impulse -------------------------------------------------
             // Re-sample after normal impulse so we see the corrected velocity.
@@ -219,8 +236,8 @@ impl Physics {
 
             // Damping factor: approaches 1.0 (no damping) at high speed,
             // drops to ~0.85 at rest. Tune LOW_SPEED and the lerp range to taste.
-            const LOW_SPEED: Float = 1.0;
-            const DAMP_REST: Float = 0.85;
+            const LOW_SPEED: Float = 2.0;
+            const DAMP_REST: Float = 0.7;
             const DAMP_FAST: Float = 0.9995;
 
             let factor_i = lerp(DAMP_REST, DAMP_FAST, (speed_i / LOW_SPEED).min(1.0));

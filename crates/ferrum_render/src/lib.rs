@@ -18,13 +18,14 @@ mod render;
 
 use model::Vertex;
 use camera::CameraUniform;
+use ferrum_collision::collision_mesh::CollisionMesh;
 use ferrum_core::math::{ToGlamQuat, ToGlamVec3};
 use ferrum_core::time::now;
 use crate::instance::{InstanceRaw, Instance};
 use ferrum_physics::rigidbody_set::RigidBodySet;
 use ferrum_physics::Physics;
 use ferrum_core::timing::Timing;
-use ferrum_physics::polyhedron::{CollisionMesh, Polyhedron};
+use ferrum_physics::polyhedron::Polyhedron;
 use crate::gui::egui_tools::EguiRenderer;
 use crate::render::create_render_pipeline;
 use crate::resources::{load_polyhedron, load_collision_meshes};

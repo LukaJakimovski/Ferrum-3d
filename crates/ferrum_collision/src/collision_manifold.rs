@@ -1,4 +1,5 @@
-use ferrum_core::math::{Float, Vec3};
+use ferrum_core::math::{Float, Quat, Vec3};
+use crate::collision_mesh::{CollisionFace, CollisionSubShape};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ContactPoint {
@@ -6,93 +7,133 @@ pub struct ContactPoint {
     pub depth: Float,
 }
 
-/// Finds contact points for two convex shapes that are known to be penetrating.
-///
-/// Strategy: clip each shape's most-anti-parallel face (the "reference" and
-/// "incident" faces) against the side-planes of the reference face, then keep
-/// the clipped incident vertices that are below the reference plane.  This is
-/// the standard Sutherland-Hodgman manifold reduction used in most narrow-phase
-/// solvers.
-///
-/// `normal`  – contact normal pointing from B toward A (world space).
-/// `pos_a/b` – world-space origins of the two bodies.
+pub fn polygon_area(verts: &[Vec3]) -> Float {
+    if verts.len() < 3 { return 0.0; }
+    let mut area = Vec3::ZERO;
+    for i in 1..verts.len() - 1 {
+        area += (verts[i] - verts[0]).cross(verts[i + 1] - verts[0]);
+    }
+    area.length() * 0.5
+}
 pub fn find_contact_manifold(
-    shape_a: &[Vec3],
-    rot_a: ferrum_core::math::Quat,
+    shape_a: &CollisionSubShape,
+    rot_a: Quat,
     pos_a: Vec3,
-    shape_b: &[Vec3],
-    rot_b: ferrum_core::math::Quat,
+    shape_b: &CollisionSubShape,
+    rot_b: Quat,
     pos_b: Vec3,
     normal: Vec3,
 ) -> Vec<ContactPoint> {
-    // Rotate into world space.
-    let verts_a: Vec<Vec3> = shape_a.iter().map(|&v| rot_a * v + pos_a).collect();
-    let verts_b: Vec<Vec3> = shape_b.iter().map(|&v| rot_b * v + pos_b).collect();
+    // Transform verts into world space
+    let verts_a: Vec<Vec3> = shape_a.verts.iter().map(|&v| rot_a * v + pos_a).collect();
+    let verts_b: Vec<Vec3> = shape_b.verts.iter().map(|&v| rot_b * v + pos_b).collect();
 
-    // Find the reference face on A (most aligned with normal)
-    let ref_face_a = best_face(&verts_a, normal);
+    // Find reference face on A: face whose normal is most aligned with contact normal
+    let ref_face = best_face_indexed(&shape_a.faces, &verts_a, normal).unwrap();
 
-    // Find the incident face on B (most anti-aligned with normal)
-    let inc_face_b = best_face(&verts_b, -normal);
+    // Find incident face on B: face whose normal is most anti-aligned
+    let inc_face = best_face_indexed(&shape_b.faces, &verts_b, -normal).unwrap();
 
-    // Clip the incident face against the side planes of the reference
-    let clipped = sutherland_hodgman(&inc_face_b, &ref_face_a, normal);
+    let ref_verts: Vec<Vec3> = ref_face.verts.iter().map(|&i| verts_a[i]).collect();
+    let inc_verts: Vec<Vec3> = inc_face.verts.iter().map(|&i| verts_b[i]).collect();
 
-    // Keep only vertices that are on or below the reference plane
-    // Reference plane: dot(p, normal) = dot(ref_face_a[0], normal)
-    let ref_d = ref_face_a[0].dot(normal);
+    // Clip incident face against side planes of reference face
+    let clipped = sutherland_hodgman(&inc_verts, &ref_verts, normal);
 
-    clipped
+    // Reference plane depth
+    let ref_d = ref_verts[0].dot(normal);
+
+    let mut contacts: Vec<ContactPoint> = clipped
         .into_iter()
         .filter_map(|p| {
             let depth = ref_d - p.dot(normal);
             if depth >= -1e-4 {
-                // Contact point halfway between the two surfaces.
                 Some(ContactPoint {
-                    position: p + normal * (depth * 0.5),
+                    position: p,
                     depth: depth.max(0.0),
                 })
             } else {
                 None
             }
         })
-        .collect()
-}
-
-/// Returns the face of the convex hull
-/// whose outward normal is most aligned with `dir`.
-///
-/// For a convex polyhedron stored as a flat vertex soup we approximate the
-/// "face" by finding the support vertex and then collecting all vertices whose
-/// projection onto `dir` is within a small epsilon of the maximum projection.
-/// This works for box-like and sphere-approximate shapes; for exact face
-/// topology you would need an **index buffer**.
-fn best_face(verts: &[Vec3], dir: Vec3) -> Vec<Vec3> {
-    let max_proj = verts
-        .iter()
-        .map(|v| v.dot(dir))
-        .fold(Float::NEG_INFINITY, Float::max);
-
-    const FACE_EPS: Float = 1e-3;
-    let face: Vec<Vec3> = verts
-        .iter()
-        .copied()
-        .filter(|v| v.dot(dir) >= max_proj - FACE_EPS)
         .collect();
 
-    if face.is_empty() {
-        // Fallback: just the single support vertex.
-        vec![*verts
-            .iter()
-            .max_by(|a, b| {
-                a.dot(dir)
-                    .partial_cmp(&b.dot(dir))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .unwrap()]
-    } else {
-        face
+    // Reduce to 4 maximally spread points
+    if contacts.len() > 4 {
+        contacts = reduce_manifold(contacts, 4);
     }
+
+    contacts
+}
+
+fn best_face_indexed<'a>(
+    faces: &'a [CollisionFace],
+    verts: &[Vec3],
+    dir: Vec3,
+) -> Option<&'a CollisionFace> {
+    faces.iter().max_by(|a, b| {
+        // Use the face normal transformed to world space to find best alignment.
+        // Since verts are already in world space, recompute normal from verts
+        // to avoid needing to rotate stored normals separately.
+        let normal_a = face_normal_from_verts(a, verts);
+        let normal_b = face_normal_from_verts(b, verts);
+        normal_a.dot(dir)
+            .partial_cmp(&normal_b.dot(dir))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
+}
+
+fn face_normal_from_verts(face: &CollisionFace, verts: &[Vec3]) -> Vec3 {
+    if face.verts.len() < 3 {
+        return Vec3::ZERO;
+    }
+    let a = verts[face.verts[0]];
+    let b = verts[face.verts[1]];
+    let c = verts[face.verts[2]];
+    (b - a).cross(c - a).normalize_or_zero()
+}
+
+fn reduce_manifold(mut points: Vec<ContactPoint>, max_points: usize) -> Vec<ContactPoint> {
+    if points.len() <= max_points {
+        return points;
+    }
+
+    let centroid = points.iter().fold(Vec3::ZERO, |a, p| a + p.position)
+        / points.len() as Float;
+
+    let mut result = Vec::with_capacity(max_points);
+
+    let first = points
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| {
+            (a.position - centroid).length_squared()
+                .partial_cmp(&(b.position - centroid).length_squared())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .map(|(i, _)| i)
+        .unwrap();
+    result.push(points.remove(first));
+
+    while result.len() < max_points && !points.is_empty() {
+        let next = points
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| {
+                let dist_a = result.iter()
+                    .map(|r| (a.position - r.position).length_squared())
+                    .fold(Float::INFINITY, Float::min);
+                let dist_b = result.iter()
+                    .map(|r| (b.position - r.position).length_squared())
+                    .fold(Float::INFINITY, Float::min);
+                dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+            .unwrap();
+        result.push(points.remove(next));
+    }
+
+    result
 }
 
 /// Sutherland-Hodgman polygon clipping.

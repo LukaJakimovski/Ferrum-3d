@@ -3,9 +3,10 @@ use std::io::{BufReader, Cursor};
 use egui_wgpu::wgpu;
 use glam::{Vec2, Vec3};
 use wgpu::util::DeviceExt;
+use ferrum_collision::collision_mesh::{CollisionFace, CollisionMesh, CollisionSubShape};
 use ferrum_core::math;
 use ferrum_core::math::Float;
-use ferrum_physics::polyhedron::{CollisionMesh, Face, Polyhedron};
+use ferrum_physics::polyhedron::{Face, Polyhedron};
 use crate::{model, texture};
 use crate::texture::Texture;
 
@@ -114,33 +115,73 @@ pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
     let contents = fs::read_to_string(path)
         .expect("Could not read file");
 
-    let mut p: Vec<math::Vec3> = vec![];
-    let mut ps: CollisionMesh = CollisionMesh { vert: vec![]};
+    let mut current_verts: Vec<math::Vec3> = vec![];
+    let mut current_faces: Vec<CollisionFace> = vec![];
+    let mut shapes: Vec<CollisionSubShape> = vec![];
+    let mut all_verts: Vec<math::Vec3> = vec![];  // global vertex list
+    let mut vert_offset: usize = 0;
 
+    let mut push_shape = |verts: &mut Vec<math::Vec3>,
+                          faces: &mut Vec<CollisionFace>,
+                          shapes: &mut Vec<CollisionSubShape>,
+                          offset: &mut usize| {
+        if !verts.is_empty() {
+            *offset += verts.len();
+            shapes.push(CollisionSubShape {
+                verts: std::mem::take(verts),
+                faces: std::mem::take(faces),
+            });
+        }
+    };
 
     for line in contents.lines() {
+        let bytes = line.as_bytes();
+        if bytes.is_empty() {
+            continue;
+        }
 
-        if line.as_bytes()[0] == 'o' as u8 && !p.is_empty() {
-            ps.vert.push(p);
-            p = vec![];
-        } else if line.as_bytes()[0] == 'v' as u8 {
-            if line.as_bytes()[1] == ' ' as u8 {
-                let floats: Vec<Float> = line
-                    .split_whitespace()
-                    .skip(1)
-                    .map(|s| s.parse::<Float>().expect("Failed to parse float"))
-                    .collect();
+        if bytes[0] == b'o' {
+            push_shape(&mut current_verts, &mut current_faces, &mut shapes, &mut vert_offset);
+        } else if bytes[0] == b'v' && bytes.get(1) == Some(&b' ') {
+            let floats: Vec<Float> = line
+                .split_whitespace()
+                .skip(1)
+                .map(|s| s.parse::<Float>().expect("Failed to parse float"))
+                .collect();
+            let v = math::Vec3::new(floats[0], floats[1], floats[2]);
+            current_verts.push(v);
+            all_verts.push(v);
+        } else if bytes[0] == b'f' {
+            let indices: Vec<usize> = line
+                .split_whitespace()
+                .skip(1)
+                .map(|s| {
+                    let idx_str = s.split('/').next().unwrap_or("0");
+                    // Subtract offset to make index local to current sub-shape
+                    idx_str.parse::<usize>().expect("Failed to parse face index") - 1 - vert_offset
+                })
+                .collect();
 
-                p.push(math::Vec3::new(
-                    floats[0] as Float,
-                    floats[1] as Float,
-                    floats[2] as Float));
-
+            if indices.len() >= 3 {
+                for i in 1..indices.len() - 1 {
+                    let face_verts = vec![indices[0], indices[i], indices[i + 1]];
+                    let normal = if face_verts.iter().all(|&fi| fi < current_verts.len()) {
+                        let a = current_verts[face_verts[0]];
+                        let b = current_verts[face_verts[1]];
+                        let c = current_verts[face_verts[2]];
+                        (b - a).cross(c - a).normalize_or_zero()
+                    } else {
+                        math::Vec3::ZERO
+                    };
+                    current_faces.push(CollisionFace { normal, verts: face_verts });
+                }
             }
         }
     }
-    ps.vert.push(p);
-    ps
+
+    push_shape(&mut current_verts, &mut current_faces, &mut shapes, &mut vert_offset);
+
+    CollisionMesh { shapes }
 }
 
 pub async fn load_model(

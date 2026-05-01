@@ -12,7 +12,3 @@ pub struct Polyhedron{
     pub faces: Vec<Face>,
     pub vert: Vec<Vec3>,
 }
-
-pub struct CollisionMesh{
-    pub vert: Vec<Vec<Vec3>>,
-}
