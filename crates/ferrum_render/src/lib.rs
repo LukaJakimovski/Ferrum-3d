@@ -156,7 +156,7 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let camera = camera::Camera::new((0.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
+        let camera = camera::Camera::new((-110.0, 5.0, 10.0), -90.0f32.to_radians(), -20.0f32.to_radians());
         let projection =
             camera::Projection::new(config.width, config.height, 45.0f32.to_radians(), 0.1, 10000.0);
         let camera_controller = camera::CameraController::new(4.0, 1.0);

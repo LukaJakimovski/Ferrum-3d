@@ -66,29 +66,28 @@ impl Physics {
 
 
     pub fn flat_plane(&mut self){
-
         let body1 = RigidBody::builder()
-            .position(Vec3::new(-10.0, 0.0, 0.0))
+            .position(Vec3::new(-110.0, 0.0, 5.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
             .restitution(0.3)
             .friction(0.7)
-            .mesh(Mesh::Arrow as usize)
-            .inertia(&self.polyhedrons[Mesh::Arrow as usize]);
+            .mesh(Mesh::Monkey as usize)
+            .inertia(&self.polyhedrons[Mesh::Monkey as usize]);
 
         let body2 = RigidBody::builder()
-            .position(Vec3::new(5.0, 0.0, 0.0))
+            .position(Vec3::new(-115.0, 0.0, 0.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
             .restitution(0.3)
             .friction(0.7)
-            .mesh(Mesh::Icosahedron as usize)
-            .inertia(&self.polyhedrons[Mesh::Icosahedron as usize]);
+            .mesh(Mesh::Cube as usize)
+            .inertia(&self.polyhedrons[Mesh::Cube as usize]);
 
         let body3 = RigidBody::builder()
-            .position(Vec3::new(-5.0, 0.0, 0.0))
+            .position(Vec3::new(-105.0, 0.0, 0.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .omega(Vec3::X * 1.0)
             .mass(1.0)
@@ -98,7 +97,7 @@ impl Physics {
             .inertia(&self.polyhedrons[Mesh::Bunny as usize]);
 
         let body4 = RigidBody::builder()
-            .position(Vec3::new(0.0, -10.0, 0.0))
+            .position(Vec3::new(-100.0, -10.0, 0.0))
             .velocity(Vec3::new(0.0, 0.0, 0.0))
             .mass((f32::MAX as f64 * 100000000000000000.0) as Float)
             .restitution(0.3)

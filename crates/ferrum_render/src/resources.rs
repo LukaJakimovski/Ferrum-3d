@@ -121,7 +121,7 @@ pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
     let mut all_verts: Vec<math::Vec3> = vec![];  // global vertex list
     let mut vert_offset: usize = 0;
 
-    let mut push_shape = |verts: &mut Vec<math::Vec3>,
+    let push_shape = |verts: &mut Vec<math::Vec3>,
                           faces: &mut Vec<CollisionFace>,
                           shapes: &mut Vec<CollisionSubShape>,
                           offset: &mut usize| {

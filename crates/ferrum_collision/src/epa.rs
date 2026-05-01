@@ -46,9 +46,6 @@ impl EpaFace {
 struct Edge(usize, usize);
 
 impl Edge {
-    fn reversed(self) -> Self {
-        Edge(self.1, self.0)
-    }
 }
 
 

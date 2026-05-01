@@ -20,7 +20,6 @@ pub struct RigidBody {
     pub(crate) index: usize,
     pub(crate) omega: Vec3,
     pub(crate) mass: Float,
-    pub(crate) scale: Vec3,
     pub inv_inertia: Mat3,
     pub friction: Float,
 }
@@ -56,7 +55,7 @@ impl RigidBody {
         self.friction = friction;
         self
     }
-    
+
     #[allow(unused)]
     pub fn gravity_mult(mut self, gravity_mult: Float) -> Self {
         self.gravity_mult = gravity_mult;
