@@ -33,6 +33,9 @@ pub struct Params {
     pub delta_time: Float,
 
     pub substeps: usize,
+    /// Longest time a single physics step may cover. Frames longer than this are
+    /// split into extra substeps so fast bodies can't skip past each other.
+    pub max_step: Float,
     pub running: bool,
 }
 
@@ -47,6 +50,7 @@ impl Default for Params {
             multiplier: 1.0,
             delta_time: 0.001,
             substeps: 1,
+            max_step: 1.0 / 60.0,
             running: true,
         }
     }

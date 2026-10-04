@@ -127,10 +127,10 @@ pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
                           offset: &mut usize| {
         if !verts.is_empty() {
             *offset += verts.len();
-            shapes.push(CollisionSubShape {
-                verts: std::mem::take(verts),
-                faces: std::mem::take(faces),
-            });
+            shapes.push(CollisionSubShape::new(
+                std::mem::take(verts),
+                std::mem::take(faces),
+            ));
         }
     };
 
@@ -181,7 +181,7 @@ pub fn load_collision_meshes(file_name: &str) -> CollisionMesh {
 
     push_shape(&mut current_verts, &mut current_faces, &mut shapes, &mut vert_offset);
 
-    CollisionMesh { shapes }
+    CollisionMesh::new(shapes)
 }
 
 pub async fn load_model(
