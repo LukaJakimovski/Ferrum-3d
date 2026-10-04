@@ -1,50 +1,100 @@
-
+use std::cell::Cell;
 use ferrum_core::math::{Quat, Vec3};
+use crate::collision_mesh::{hill_climb_support, CollisionSubShape};
 
-/// Returns the point in `shape` that is furthest in direction `dir`.
-fn support(shape: &[Vec3], rot: Quat, dir: Vec3) -> Vec3 {
-    debug_assert!(dir.length_squared() > 1e-10, "support called with ~zero dir");
+/// Hulls with fewer vertices than this are scanned linearly, which beats
+/// hill climbing when everything fits in a few cache lines.
+const HILL_CLIMB_MIN_VERTS: usize = 32;
 
-    shape
-        .iter()
-        .map(|&v| rot * v)
-        .max_by(|a, b| {
-            a.dot(dir)
-                .partial_cmp(&b.dot(dir))
-                .unwrap_or(std::cmp::Ordering::Less) // NaN sorts to the bottom
-        })
-        .unwrap()
+/// A convex vertex cloud placed in world space.
+pub struct ConvexShape<'a> {
+    pub verts: &'a [Vec3],
+    /// Hull adjacency (see `CollisionSubShape::neighbors`); empty for a plain point cloud.
+    neighbors: &'a [Vec<usize>],
+    pub rot: Quat,
+    pub inv_rot: Quat,
+    pub pos: Vec3,
+    /// Vertex returned by the previous support query. Consecutive GJK/EPA
+    /// directions are close, so hill climbing from here takes very few steps.
+    last_support: Cell<usize>,
+}
+
+impl<'a> ConvexShape<'a> {
+    pub fn new(verts: &'a [Vec3], rot: Quat, pos: Vec3) -> Self {
+        Self { verts, neighbors: &[], rot, inv_rot: rot.conjugate(), pos, last_support: Cell::new(0) }
+    }
+
+    pub fn from_sub_shape(shape: &'a CollisionSubShape, rot: Quat, pos: Vec3) -> Self {
+        let mut convex = Self::new(&shape.verts, rot, pos);
+        if shape.verts.len() >= HILL_CLIMB_MIN_VERTS && shape.neighbors.len() == shape.verts.len() {
+            if let Some(start) = shape.neighbors.iter().position(|n| !n.is_empty()) {
+                convex.neighbors = &shape.neighbors;
+                convex.last_support.set(start);
+            }
+        }
+        convex
+    }
+
+    /// Returns the world space point in the shape that is furthest in direction `dir`.
+    ///
+    /// The search happens in local space so only the direction and the winning
+    /// vertex need to be rotated, not every vertex of the hull.
+    #[inline]
+    pub fn support(&self, dir: Vec3) -> Vec3 {
+        debug_assert!(!self.verts.is_empty());
+        let local_dir = self.inv_rot * dir;
+
+        let best = if self.neighbors.is_empty() {
+            let mut best = 0;
+            let mut best_dot = self.verts[0].dot(local_dir);
+            for (i, v) in self.verts.iter().enumerate().skip(1) {
+                let d = v.dot(local_dir);
+                if d > best_dot {
+                    best_dot = d;
+                    best = i;
+                }
+            }
+            best
+        } else {
+            let best = hill_climb_support(self.verts, self.neighbors, self.last_support.get(), local_dir);
+            self.last_support.set(best);
+            best
+        };
+        self.rot * self.verts[best] + self.pos
+    }
+}
+
+/// A point on the Minkowski difference A - B, together with the points on
+/// A and B that produced it (needed to recover contact positions).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SupportPoint {
+    pub p: Vec3,
+    pub a: Vec3,
+    pub b: Vec3,
 }
 
 /// Minkowski difference support: furthest point of (A – B) in direction `dir`.
-pub fn minkowski_support_rotated(
-    shape_a: &[Vec3],
-    rot_a: Quat,
-    shape_b: &[Vec3],
-    rot_b: Quat,
-    offset: Vec3, // pos_b - pos_a  (world space)
-    dir: Vec3,
-) -> Vec3 {
-    let sa = support(shape_a, rot_a, dir);
-    // For shape_b we search in -dir, then account for the translation offset
-    let sb = support(shape_b, rot_b, -dir) + offset;
-    sa - sb
+#[inline]
+pub fn minkowski_support(shape_a: &ConvexShape, shape_b: &ConvexShape, dir: Vec3) -> SupportPoint {
+    let a = shape_a.support(dir);
+    let b = shape_b.support(-dir);
+    SupportPoint { p: a - b, a, b }
 }
 
 #[derive(Clone, Debug)]
 pub struct Simplex {
-    pub points: [Vec3; 4],
+    pub points: [SupportPoint; 4],
     pub size: usize,
 }
 impl Simplex {
-    pub(crate) fn new(initial: Vec3) -> Self {
+    pub(crate) fn new(initial: SupportPoint) -> Self {
         Self {
-            points: [initial, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO],
+            points: [initial; 4],
             size: 1,
         }
     }
 
-    pub(crate) fn push(&mut self, p: Vec3) {
+    pub(crate) fn push(&mut self, p: SupportPoint) {
         // Shift existing points up and put the newest point at index 0
         // (index 0 is always the point added most recently)
         self.points[3] = self.points[2];
@@ -54,10 +104,10 @@ impl Simplex {
         self.size = (self.size + 1).min(4);
     }
 
-    fn a(&self) -> Vec3 { self.points[0] }
-    fn b(&self) -> Vec3 { self.points[1] }
-    fn c(&self) -> Vec3 { self.points[2] }
-    fn d(&self) -> Vec3 { self.points[3] }
+    fn a(&self) -> Vec3 { self.points[0].p }
+    fn b(&self) -> Vec3 { self.points[1].p }
+    fn c(&self) -> Vec3 { self.points[2].p }
+    fn d(&self) -> Vec3 { self.points[3].p }
 }
 
 
@@ -107,7 +157,7 @@ fn triangle_case(simplex: &mut Simplex) -> Option<Vec3> {
     if abc.cross(ac).dot(ao) > 0.0 {
         if ac.dot(ao) > 0.0 {
             // Keep A, C
-            simplex.points[1] = c;
+            simplex.points[1] = simplex.points[2];
             simplex.size = 2;
             return Some(ac.cross(ao).cross(ac));
         }
@@ -126,27 +176,21 @@ fn triangle_case(simplex: &mut Simplex) -> Option<Vec3> {
         Some(abc)
     } else {
         // Below the triangle; swap B and C to flip normal
-        simplex.points[1] = c;
-        simplex.points[2] = b;
+        simplex.points.swap(1, 2);
         Some(-abc)
     }
 }
 
 /// Shared helper: reduce to line AB and return search direction.
 fn line_case_ab(simplex: &mut Simplex, a: Vec3, b: Vec3, ao: Vec3) -> Option<Vec3> {
-    if ab_toward_origin(a, b, ao) {
-        simplex.points[1] = b;
+    let ab = b - a;
+    if ab.dot(ao) > 0.0 {
         simplex.size = 2;
-        let ab = b - a;
         Some(ab.cross(ao).cross(ab))
     } else {
         simplex.size = 1;
         Some(ao)
     }
-}
-
-fn ab_toward_origin(a: Vec3, b: Vec3, ao: Vec3) -> bool {
-    (b - a).dot(ao) > 0.0
 }
 
 /// Tetrahedron simplex: A newest, then B, C, D.
@@ -165,26 +209,23 @@ fn tetrahedron_case(simplex: &mut Simplex) -> Option<Vec3> {
     let acd = ac.cross(ad);
     let adb = ad.cross(ab);
 
+    let [pa, pb, pc, pd] = simplex.points;
+
     // Check which face the origin is "above" and reduce accordingly
     if abc.dot(ao) > 0.0 {
         // Origin above face ABC – discard D, recurse as triangle ABC
-        simplex.points[3] = Vec3::ZERO;
         simplex.size = 3;
         return triangle_case(simplex);
     }
     if acd.dot(ao) > 0.0 {
         // Origin above face ACD – discard B, recurse as triangle ACD
-        simplex.points[1] = c;
-        simplex.points[2] = d;
-        simplex.points[3] = Vec3::ZERO;
+        simplex.points = [pa, pc, pd, pd];
         simplex.size = 3;
         return triangle_case(simplex);
     }
     if adb.dot(ao) > 0.0 {
         // Origin above face ADB – discard C, recurse as triangle ADB
-        simplex.points[1] = d;
-        simplex.points[2] = b;
-        simplex.points[3] = Vec3::ZERO;
+        simplex.points = [pa, pd, pb, pb];
         simplex.size = 3;
         return triangle_case(simplex);
     }

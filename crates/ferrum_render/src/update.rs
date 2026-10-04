@@ -36,16 +36,28 @@ impl State{
 
         use ferrum_physics::DeltaTimeMode as DT;
 
+        // A hitch (window drag, breakpoint...) shouldn't turn into one enormous step.
+        const MAX_FRAME_DT: Float = 0.25;
+        // Upper bound on substeps added because of `max_step`, so a large time
+        // multiplier can't make every frame arbitrarily expensive.
+        const MAX_AUTO_SUBSTEPS: usize = 32;
+
         let p = &self.physics.parameters;
-        let (dt_mode, dt_mult, dt_const, substeps, running) =
-            (p.delta_time_mode, p.multiplier, p.delta_time, p.substeps, p.running);
+        let (dt_mode, dt_mult, dt_const, substeps, max_step, running) =
+            (p.delta_time_mode, p.multiplier, p.delta_time, p.substeps, p.max_step, p.running);
         if p.running {
             self.timer.runtime += dt;
-            let physics_dt = match dt_mode {
-                DT::RealTime => {dt}
-                DT::Multiplier => {dt * dt_mult}
+            let frame_dt = match dt_mode {
+                DT::RealTime => {dt.min(MAX_FRAME_DT)}
+                DT::Multiplier => {dt.min(MAX_FRAME_DT) * dt_mult}
                 DT::Constant => { dt_const },
-            } / substeps as Float;
+            };
+            let substeps = if max_step > 0.0 {
+                substeps.max(((frame_dt.abs() / max_step).ceil() as usize).min(MAX_AUTO_SUBSTEPS))
+            } else {
+                substeps
+            };
+            let physics_dt = frame_dt / substeps as Float;
             for _i in 0..substeps {
                 if running {
                     self.physics.physics_update(physics_dt);
